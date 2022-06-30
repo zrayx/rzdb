@@ -58,4 +58,12 @@ impl Db {
             panic!("Db::select_from({}): could not find table", table_name);
         }
     }
+
+    pub fn to_string(&self, table_name: &str) -> String {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].to_string()
+        } else {
+            panic!("Db::to_string({}): could not find table", table_name);
+        }
+    }
 }

@@ -9,12 +9,7 @@ fn main() {
     db.create_column("test1", "value");
     db.insert("test1", vec!["hello", "world"]);
     db.insert("test1", vec!["bon jour", "le monde"]);
-    db.insert("test1", vec!["你好", "世界"]);
+    db.insert("test1", vec!["你好", "世界"]); // no proper display of double width unicode characters
 
-    for row in db.select_from("test1") {
-        for column in row {
-            print!("{},", column.to_string());
-        }
-        println!();
-    }
+    print!("{}", db.to_string("test1"));
 }

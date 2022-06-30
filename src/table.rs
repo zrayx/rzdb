@@ -45,3 +45,64 @@ impl Table {
         result
     }
 }
+
+impl std::fmt::Display for Table {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let pad = |s: &str, width: usize| {
+            let mut s = s.to_string();
+            while s.len() < width {
+                s.push(' ');
+            }
+            s
+        };
+        let line = |width| {
+            let mut s = String::new();
+            for _ in 0..width {
+                s.push('-');
+            }
+            s
+        };
+
+        // get the width of all column names
+        let mut column_widths = vec![];
+        for column_name in &self.column_names {
+            column_widths.push(column_name.len());
+        }
+        // get the maximum width of all row values
+        for row in &self.rows {
+            for (i, value) in row.select().iter().enumerate() {
+                let width = column_widths[i];
+                let value = value.to_string();
+                if value.len() > width {
+                    column_widths[i] = value.len();
+                }
+            }
+        }
+
+        let mut result = String::new();
+        // write column names
+        for (i, column_name) in self.column_names.iter().enumerate() {
+            let width = column_widths[i];
+            result.push_str(&pad(column_name, width + 1));
+        }
+        result.push('\n');
+        // write line under column names
+        for (i, _) in self.column_names.iter().enumerate() {
+            let width = column_widths[i];
+            result.push_str(&line(width));
+            result.push(' ');
+        }
+        result.push('\n');
+
+        // write row values
+        for row in &self.rows {
+            for (i, value) in row.select().iter().enumerate() {
+                let width = column_widths[i];
+                result.push_str(&pad(&value.to_string(), width + 1));
+            }
+            result.push('\n');
+        }
+
+        write!(f, "{}", result)
+    }
+}

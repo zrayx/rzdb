@@ -4,7 +4,6 @@ mod row;
 mod table;
 
 pub use crate::db::Db;
-pub use crate::table::Table;
 
 #[cfg(test)]
 mod tests {

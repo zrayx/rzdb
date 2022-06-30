@@ -11,10 +11,16 @@ impl Data {
     pub fn parse(s: &str) -> Data {
         Data::DbString(s.to_string())
     }
+}
 
-    pub fn to_string(&self) -> String {
-        match self {
-            Data::DbString(s) => s.clone(),
-        }
+impl std::fmt::Display for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Data::DbString(s) => s.clone(),
+            }
+        )
     }
 }
