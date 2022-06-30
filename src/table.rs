@@ -44,6 +44,18 @@ impl Table {
         }
         result
     }
+
+    pub fn get_column_names(&self) -> Vec<String> {
+        self.column_names.clone()
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.rows.len()
+    }
+
+    pub fn column_count(&self) -> usize {
+        self.column_names.len()
+    }
 }
 
 impl std::fmt::Display for Table {

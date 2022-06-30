@@ -51,7 +51,7 @@ impl Db {
         }
     }
 
-    pub fn select_from(&mut self, table_name: &str) -> Vec<Vec<Data>> {
+    pub fn select_from(&self, table_name: &str) -> Vec<Vec<Data>> {
         if let Some(id) = self.get_table_id(table_name) {
             self.tables[id].select()
         } else {
@@ -64,6 +64,34 @@ impl Db {
             self.tables[id].to_string()
         } else {
             panic!("Db::to_string({}): could not find table", table_name);
+        }
+    }
+
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn get_column_names(&self, table_name: &str) -> Vec<String> {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].get_column_names()
+        } else {
+            panic!("Db::get_column_names({}): could not find table", table_name);
+        }
+    }
+
+    pub fn row_count(&self, table_name: &str) -> usize {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].row_count()
+        } else {
+            panic!("Db::row_count({}): could not find table", table_name);
+        }
+    }
+
+    pub fn column_count(&self, table_name: &str) -> usize {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].column_count()
+        } else {
+            panic!("Db::column_count({}): could not find table", table_name);
         }
     }
 }
