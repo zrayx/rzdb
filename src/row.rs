@@ -1,4 +1,5 @@
 use crate::data::Data;
+use std::error::Error;
 
 pub struct Row {
     data: Vec<Data>,
@@ -9,9 +10,13 @@ impl Row {
         Row { data: vec![] }
     }
 
+    pub fn add(&mut self, data: Data) {
+        self.data.push(data);
+    }
+
     pub fn add_parse(&mut self, s: &str) {
         let data = Data::parse(s);
-        self.data.push(data);
+        self.add(data);
     }
 
     pub fn select(&self) -> Vec<Data> {
@@ -20,5 +25,10 @@ impl Row {
             result.push(datum.clone());
         }
         result
+    }
+
+    pub fn set_at(&mut self, idx: usize, value: Data) -> Result<(), Box<dyn Error>> {
+        self.data[idx] = value;
+        Ok(())
     }
 }

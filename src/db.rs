@@ -1,5 +1,6 @@
 use crate::data::Data;
 use crate::table::Table;
+use std::error::Error;
 
 pub struct Db {
     pub name: String,
@@ -90,6 +91,20 @@ impl Db {
     pub fn column_count(&self, table_name: &str) -> usize {
         if let Some(id) = self.get_table_id(table_name) {
             self.tables[id].column_count()
+        } else {
+            panic!("Db::column_count({}): could not find table", table_name);
+        }
+    }
+
+    pub fn set_at(
+        &mut self,
+        table_name: &str,
+        row_idx: usize,
+        column_idx: usize,
+        value: Data,
+    ) -> Result<(), Box<dyn Error>> {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].set_at(row_idx, column_idx, value)
         } else {
             panic!("Db::column_count({}): could not find table", table_name);
         }

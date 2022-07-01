@@ -1,6 +1,7 @@
 #[derive(Clone)]
 pub enum Data {
-    DbString(String),
+    String(String),
+    Empty,
     //DbFloat(f64),
     //DbI32(i32),
     //DbDate(Date),
@@ -9,7 +10,7 @@ pub enum Data {
 
 impl Data {
     pub fn parse(s: &str) -> Data {
-        Data::DbString(s.to_string())
+        Data::String(s.to_string())
     }
 }
 
@@ -19,7 +20,8 @@ impl std::fmt::Display for Data {
             f,
             "{}",
             match self {
-                Data::DbString(s) => s.clone(),
+                Data::String(s) => s.clone(),
+                Data::Empty => "".to_string(),
             }
         )
     }

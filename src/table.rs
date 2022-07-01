@@ -1,5 +1,6 @@
 use crate::data::Data;
 use crate::row::Row;
+use std::error::Error;
 
 pub struct Table {
     pub name: String,
@@ -18,6 +19,9 @@ impl Table {
 
     pub fn create_column(&mut self, name: &str) {
         self.column_names.push(name.to_string());
+        for row in &mut self.rows {
+            row.add(Data::Empty);
+        }
     }
 
     pub fn insert(&mut self, values: Vec<&str>) {
@@ -55,6 +59,15 @@ impl Table {
 
     pub fn column_count(&self) -> usize {
         self.column_names.len()
+    }
+
+    pub fn set_at(
+        &mut self,
+        row_idx: usize,
+        column_idx: usize,
+        value: Data,
+    ) -> Result<(), Box<dyn Error>> {
+        self.rows[row_idx].set_at(column_idx, value)
     }
 }
 
