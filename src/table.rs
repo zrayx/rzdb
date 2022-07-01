@@ -17,6 +17,49 @@ impl Table {
         }
     }
 
+    pub fn load(full_name: &str) -> Result<Table, Box<dyn Error>> {
+        let content = std::fs::read_to_string(full_name)?;
+
+        let mut lines = content.lines();
+        let column_names: Vec<String> = lines
+            .next()
+            .unwrap()
+            .split(',')
+            .map(|s| s.to_string())
+            .collect();
+
+        // rows
+        let column_count = column_names.len();
+        let mut rows = vec![];
+        for line in lines {
+            let mut row = Row::new();
+            let mut data = Data::decode_line(line);
+            while data.len() < column_count {
+                data.push(Data::Empty);
+            }
+            for datum in data {
+                row.add(datum);
+            }
+            rows.push(row);
+        }
+
+        // table name
+        let name = full_name
+            .split('/')
+            .last()
+            .unwrap()
+            .split('.')
+            .next()
+            .unwrap()
+            .to_string();
+
+        Ok(Table {
+            name,
+            column_names,
+            rows,
+        })
+    }
+
     pub fn create_column(&mut self, name: &str) {
         self.column_names.push(name.to_string());
         for row in &mut self.rows {

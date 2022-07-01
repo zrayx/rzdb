@@ -3,7 +3,8 @@ extern crate rzdb;
 use rzdb::Db;
 
 fn main() {
-    let mut db = Db::create("basic", "./db");
+    // note: this will create the directory "./db/basic" if it does not exist
+    let mut db = Db::create("basic", "./db").unwrap();
     db.create_table("test1");
     db.create_column("test1", "name");
     db.create_column("test1", "value");

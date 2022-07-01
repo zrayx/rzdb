@@ -9,12 +9,72 @@ pub struct Db {
 }
 
 impl Db {
-    pub fn create(name: &str, path: &str) -> Db {
-        Db {
+    pub fn create(name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
+        // create path
+        let db_path = format!("{}/{}", path, name);
+        std::fs::create_dir_all(db_path).unwrap();
+
+        Ok(Db {
             name: name.to_string(),
             path: path.to_string(),
             tables: vec![],
+        })
+    }
+
+    pub fn load(name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
+        let mut db = Db {
+            name: name.to_string(),
+            path: path.to_string(),
+            tables: vec![],
+        };
+
+        let db_path = format!("{}/{}", path, name);
+
+        // load each file in the directory
+        for entry in std::fs::read_dir(&db_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let filename = path.file_name().unwrap().to_str().unwrap();
+            let full_filename = format!("{}/{}", db_path, filename);
+            if filename.ends_with(".csv") {
+                println!("a1 filename: {}, db_path: {}", filename, db_path);
+                let table = Table::load(&full_filename)?;
+                println!("a2");
+                db.tables.push(table);
+            }
         }
+        Ok(db)
+    }
+
+    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+        let db_path = format!("{}/{}", self.path, self.name);
+
+        for table in &self.tables {
+            let filename = format!("{}/{}.csv", db_path, table.name);
+            let mut out = String::new();
+            for (idx, name) in table.get_column_names().iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                out.push_str(name);
+            }
+            out.push('\n');
+
+            let all_data = table.select();
+            for row in all_data {
+                for (idx, value) in row.iter().enumerate() {
+                    if idx > 0 {
+                        out.push(',');
+                    }
+                    out.push_str(&value.encode_for_csv());
+                }
+                out.push('\n');
+            }
+
+            std::fs::write(filename, out)?;
+        }
+
+        Ok(())
     }
 
     pub fn create_table(&mut self, name: &str) {
@@ -30,6 +90,10 @@ impl Db {
                 column_name, table_name
             );
         }
+    }
+
+    pub fn exists(&self, table_name: &str) -> bool {
+        self.get_table_id(table_name).is_some()
     }
 
     pub fn get_table_id(&self, name: &str) -> Option<usize> {
