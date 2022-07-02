@@ -112,7 +112,7 @@ impl Db {
         }
     }
 
-    pub fn delete_row(&mut self, table_name: &str, row_idx: usize) {
+    pub fn delete_row_at(&mut self, table_name: &str, row_idx: usize) {
         if let Some(id) = self.get_table_id(table_name) {
             self.tables[id].delete_row(row_idx);
         } else {
@@ -163,6 +163,17 @@ impl Db {
             self.tables[id].select()
         } else {
             panic!("Db::select_from({}): could not find table", table_name);
+        }
+    }
+
+    pub fn select_at(&self, table_name: &str, col_idx: usize, row_idx: usize) -> Data {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].select_at(col_idx, row_idx)
+        } else {
+            panic!(
+                "Db::select_at({}, {}, {}): could not find table",
+                table_name, row_idx, col_idx
+            );
         }
     }
 

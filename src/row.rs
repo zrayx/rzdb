@@ -31,6 +31,10 @@ impl Row {
         result
     }
 
+    pub fn select_at(&self, idx: usize) -> Data {
+        self.data[idx].clone()
+    }
+
     pub fn set_at(&mut self, idx: usize, value: Data) -> Result<(), Box<dyn Error>> {
         self.data[idx] = value;
         Ok(())

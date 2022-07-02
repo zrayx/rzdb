@@ -167,6 +167,10 @@ impl Table {
         result
     }
 
+    pub fn select_at(&self, col_idx: usize, row_idx: usize) -> Data {
+        self.rows[row_idx].select_at(col_idx)
+    }
+
     pub fn get_column_names(&self) -> Vec<String> {
         self.column_names.clone()
     }
