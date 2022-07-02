@@ -2,10 +2,10 @@
 pub enum Data {
     String(String),
     Empty,
-    //DbFloat(f64),
-    //DbI32(i32),
-    //DbDate(Date),
-    //DbTime(Time),
+    //Float(f64),
+    //I64(i64),
+    //Date(Date),
+    //Time(Time),
 }
 
 fn encode_for_csv(s: &str) -> String {
@@ -136,10 +136,6 @@ impl Data {
         match self {
             Data::String(s) => encode_for_csv(s),
             Data::Empty => "".to_string(),
-            //Data::DbFloat(f) => f.to_string(),
-            //Data::DbI32(i) => i.to_string(),
-            //Data::DbDate(d) => d.to_string(),
-            //Data::DbTime(t) => t.to_string(),
         }
     }
 }

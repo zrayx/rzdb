@@ -1,43 +1,55 @@
+use std::error::Error;
+
 use crate::data::Data;
 use crate::table::Table;
-use std::error::Error;
+use crate::time::Timestamp;
 
 pub struct Db {
     pub name: String,
-    pub path: String,
+    pub full_path: String,
+    pub backup_path: String,
     tables: Vec<Table>,
 }
 
 impl Db {
+    fn path_names(name: &str, path: &str) -> (String, String) {
+        let full_path = format!("{}/{}", path, name);
+        let backup_path = format!("{}/{}/backup", path, name);
+        (full_path, backup_path)
+    }
+
     pub fn create(name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
         // create path
-        let db_path = format!("{}/{}", path, name);
-        std::fs::create_dir_all(db_path).unwrap();
+        let (full_path, backup_path) = Db::path_names(name, path);
+        std::fs::create_dir_all(&full_path).unwrap();
+        std::fs::create_dir_all(&backup_path).unwrap();
 
         Ok(Db {
             name: name.to_string(),
-            path: path.to_string(),
+            full_path,
+            backup_path,
             tables: vec![],
         })
     }
 
     pub fn load(name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
+        let (full_path, backup_path) = Db::path_names(name, path);
+
         let mut db = Db {
             name: name.to_string(),
-            path: path.to_string(),
+            full_path,
+            backup_path,
             tables: vec![],
         };
 
-        let db_path = format!("{}/{}", path, name);
-
         // load each file in the directory
-        for entry in std::fs::read_dir(&db_path)? {
+        for entry in std::fs::read_dir(&db.full_path)? {
             let entry = entry?;
             let path = entry.path();
             let filename = path.file_name().unwrap().to_str().unwrap();
-            let full_filename = format!("{}/{}", db_path, filename);
+            let full_filename = format!("{}/{}", &db.full_path, filename);
             if filename.ends_with(".csv") {
-                println!("a1 filename: {}, db_path: {}", filename, db_path);
+                println!("a1 filename: {}, db_path: {}", filename, &db.full_path);
                 let table = Table::load(&full_filename)?;
                 println!("a2");
                 db.tables.push(table);
@@ -46,32 +58,18 @@ impl Db {
         Ok(db)
     }
 
-    pub fn save(&self) -> Result<(), Box<dyn Error>> {
-        let db_path = format!("{}/{}", self.path, self.name);
+    pub fn save(&mut self) -> Result<(), Box<dyn Error>> {
+        for table in &mut self.tables {
+            if table.is_changed() {
+                let filename = format!("{}/{}.csv", self.full_path, table.name);
 
-        for table in &self.tables {
-            let filename = format!("{}/{}.csv", db_path, table.name);
-            let mut out = String::new();
-            for (idx, name) in table.get_column_names().iter().enumerate() {
-                if idx > 0 {
-                    out.push(',');
-                }
-                out.push_str(name);
+                let timestamp = Timestamp::now().to_filename_string();
+                let backup_filename =
+                    format!("{}/{}-{}.csv", self.backup_path, table.name, timestamp);
+                std::fs::copy(&filename, &backup_filename)?;
+
+                table.save(&filename)?;
             }
-            out.push('\n');
-
-            let all_data = table.select();
-            for row in all_data {
-                for (idx, value) in row.iter().enumerate() {
-                    if idx > 0 {
-                        out.push(',');
-                    }
-                    out.push_str(&value.encode_for_csv());
-                }
-                out.push('\n');
-            }
-
-            std::fs::write(filename, out)?;
         }
 
         Ok(())
@@ -87,6 +85,50 @@ impl Db {
         } else {
             panic!(
                 "Db::create_column {}: could not find table {}",
+                column_name, table_name
+            );
+        }
+    }
+
+    pub fn insert_column_at(&mut self, table_name: &str, column_name: &str, index: usize) {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].insert_column_at(column_name, index);
+        } else {
+            panic!(
+                "Db::insert_column_at {}: could not find table {}",
+                column_name, table_name
+            );
+        }
+    }
+
+    pub fn insert_row_at(&mut self, table_name: &str, index: usize) {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].insert_row_at(index);
+        } else {
+            panic!(
+                "Db::insert_row_at {}: could not find table {}",
+                index, table_name
+            );
+        }
+    }
+
+    pub fn delete_row(&mut self, table_name: &str, row_idx: usize) {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].delete_row(row_idx);
+        } else {
+            panic!(
+                "Db::delete_row {}: could not find table {}",
+                row_idx, table_name
+            );
+        }
+    }
+
+    pub fn delete_column(&mut self, table_name: &str, column_name: &str) {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].delete_column(column_name);
+        } else {
+            panic!(
+                "Db::delete_column {}: could not find table {}",
                 column_name, table_name
             );
         }
@@ -144,7 +186,7 @@ impl Db {
         }
     }
 
-    pub fn row_count(&self, table_name: &str) -> usize {
+    pub fn get_row_count(&self, table_name: &str) -> usize {
         if let Some(id) = self.get_table_id(table_name) {
             self.tables[id].row_count()
         } else {
@@ -152,7 +194,7 @@ impl Db {
         }
     }
 
-    pub fn column_count(&self, table_name: &str) -> usize {
+    pub fn get_column_count(&self, table_name: &str) -> usize {
         if let Some(id) = self.get_table_id(table_name) {
             self.tables[id].column_count()
         } else {

@@ -6,6 +6,7 @@ pub struct Table {
     pub name: String,
     column_names: Vec<String>,
     rows: Vec<Row>,
+    changed: bool,
 }
 
 impl Table {
@@ -14,6 +15,7 @@ impl Table {
             name: name.to_string(),
             column_names: vec![],
             rows: vec![],
+            changed: false,
         }
     }
 
@@ -57,7 +59,42 @@ impl Table {
             name,
             column_names,
             rows,
+            changed: false,
         })
+    }
+
+    pub fn save(&mut self, filename: &str) -> Result<(), Box<dyn Error>> {
+        let mut out = String::new();
+        for (idx, name) in self.get_column_names().iter().enumerate() {
+            if idx > 0 {
+                out.push(',');
+            }
+            out.push_str(name);
+        }
+        out.push('\n');
+
+        let all_data = self.select();
+        for row in all_data {
+            for (idx, value) in row.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                out.push_str(&value.encode_for_csv());
+            }
+            out.push('\n');
+        }
+
+        std::fs::write(filename, out)?;
+        self.changed = false;
+        Ok(())
+    }
+
+    pub fn is_changed(&self) -> bool {
+        self.changed
+    }
+
+    pub fn get_column_idx(&self, name: &str) -> Option<usize> {
+        self.column_names.iter().position(|n| n == name)
     }
 
     pub fn create_column(&mut self, name: &str) {
@@ -65,6 +102,43 @@ impl Table {
         for row in &mut self.rows {
             row.add(Data::Empty);
         }
+        self.changed = true;
+    }
+
+    pub fn insert_row_at(&mut self, index: usize) {
+        let column_count = self.column_count();
+        self.rows
+            .insert(index, Row::new_from(vec![Data::Empty; column_count]));
+        self.changed = true;
+    }
+
+    pub fn insert_column_at(&mut self, column_name: &str, idx: usize) {
+        self.column_names.insert(idx, column_name.to_string());
+        for row in &mut self.rows {
+            row.insert_at(idx, Data::Empty);
+        }
+        self.changed = true;
+    }
+
+    pub fn delete_row(&mut self, row_idx: usize) {
+        self.rows.remove(row_idx);
+        self.changed = true;
+    }
+
+    pub fn delete_column(&mut self, column_name: &str) {
+        let idx = self.get_column_idx(column_name);
+        if idx == None {
+            panic!(
+                "Table::delete_column: could not find column {}",
+                column_name
+            );
+        }
+        let idx = idx.unwrap();
+        for row in &mut self.rows {
+            row.delete(idx);
+        }
+        self.column_names.remove(idx);
+        self.changed = true;
     }
 
     pub fn insert(&mut self, values: Vec<&str>) {
@@ -82,6 +156,7 @@ impl Table {
             );
         }
         self.rows.push(row);
+        self.changed = true;
     }
 
     pub fn select(&self) -> Vec<Vec<Data>> {
@@ -110,6 +185,7 @@ impl Table {
         column_idx: usize,
         value: Data,
     ) -> Result<(), Box<dyn Error>> {
+        self.changed = true;
         self.rows[row_idx].set_at(column_idx, value)
     }
 }

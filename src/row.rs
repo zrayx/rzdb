@@ -10,6 +10,10 @@ impl Row {
         Row { data: vec![] }
     }
 
+    pub fn new_from(data: Vec<Data>) -> Row {
+        Row { data }
+    }
+
     pub fn add(&mut self, data: Data) {
         self.data.push(data);
     }
@@ -30,5 +34,13 @@ impl Row {
     pub fn set_at(&mut self, idx: usize, value: Data) -> Result<(), Box<dyn Error>> {
         self.data[idx] = value;
         Ok(())
+    }
+
+    pub fn insert_at(&mut self, idx: usize, value: Data) {
+        self.data.insert(idx, value);
+    }
+
+    pub fn delete(&mut self, idx: usize) {
+        self.data.remove(idx);
     }
 }
