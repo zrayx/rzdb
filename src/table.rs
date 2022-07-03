@@ -105,6 +105,18 @@ impl Table {
         self.changed = true;
     }
 
+    pub fn rename_column(&mut self, old_name: &str, new_name: &str) {
+        if let Some(idx) = self.get_column_idx(old_name) {
+            self.column_names[idx] = new_name.to_string();
+            self.changed = true;
+        } else {
+            panic!(
+                "Table::rename_column {}: could not find column {}",
+                old_name, new_name
+            );
+        }
+    }
+
     pub fn insert_row_at(&mut self, index: usize) {
         let column_count = self.column_count();
         self.rows
@@ -169,6 +181,10 @@ impl Table {
 
     pub fn select_at(&self, col_idx: usize, row_idx: usize) -> Data {
         self.rows[row_idx].select_at(col_idx)
+    }
+
+    pub fn get_column_name_at(&self, idx: usize) -> String {
+        self.column_names[idx].clone()
     }
 
     pub fn get_column_names(&self) -> Vec<String> {

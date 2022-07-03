@@ -90,6 +90,17 @@ impl Db {
         }
     }
 
+    pub fn rename_column(&mut self, table_name: &str, old_name: &str, new_name: &str) {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].rename_column(old_name, new_name);
+        } else {
+            panic!(
+                "Db::rename_column {}: could not find table {}",
+                old_name, table_name
+            );
+        }
+    }
+
     pub fn insert_column_at(&mut self, table_name: &str, column_name: &str, index: usize) {
         if let Some(id) = self.get_table_id(table_name) {
             self.tables[id].insert_column_at(column_name, index);
@@ -187,6 +198,14 @@ impl Db {
 
     pub fn get_name(&self) -> String {
         self.name.clone()
+    }
+
+    pub fn get_column_name_at(&self, table_name: &str, idx: usize) -> String {
+        if let Some(id) = self.get_table_id(table_name) {
+            self.tables[id].get_column_name_at(idx)
+        } else {
+            panic!("Db::get_column_names({}): could not find table", table_name);
+        }
     }
 
     pub fn get_column_names(&self, table_name: &str) -> Vec<String> {
