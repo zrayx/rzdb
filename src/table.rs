@@ -93,28 +93,47 @@ impl Table {
         self.changed
     }
 
-    pub fn get_column_idx(&self, name: &str) -> Option<usize> {
+    pub fn get_column_idx_result(&self, name: &str) -> Result<usize, Box<dyn Error>> {
+        if let Some(idx) = self.column_names.iter().position(|n| n == name) {
+            Ok(idx)
+        } else {
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Column {} not found", name),
+            )))
+        }
+    }
+
+    pub fn get_column_idx_option(&self, name: &str) -> Option<usize> {
         self.column_names.iter().position(|n| n == name)
     }
 
-    pub fn create_column(&mut self, name: &str) {
+    pub fn create_column(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+        if self.get_column_idx_option(name).is_some() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("column {} already exists", name),
+            )));
+        }
         self.column_names.push(name.to_string());
         for row in &mut self.rows {
             row.add(Data::Empty);
         }
         self.changed = true;
+        Ok(())
     }
 
-    pub fn rename_column(&mut self, old_name: &str, new_name: &str) {
-        if let Some(idx) = self.get_column_idx(old_name) {
-            self.column_names[idx] = new_name.to_string();
-            self.changed = true;
-        } else {
-            panic!(
-                "Table::rename_column {}: could not find column {}",
-                old_name, new_name
-            );
+    pub fn rename_column(&mut self, old_name: &str, new_name: &str) -> Result<(), Box<dyn Error>> {
+        if let Ok(_) = self.get_column_idx_result(new_name) {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("column {} already exists", new_name),
+            )));
         }
+        let idx = self.get_column_idx_result(old_name)?;
+        self.column_names[idx] = new_name.to_string();
+        self.changed = true;
+        Ok(())
     }
 
     pub fn insert_row_at(&mut self, index: usize) {
@@ -137,38 +156,42 @@ impl Table {
         self.changed = true;
     }
 
-    pub fn delete_column(&mut self, column_name: &str) {
-        let idx = self.get_column_idx(column_name);
-        if idx == None {
-            panic!(
-                "Table::delete_column: could not find column {}",
-                column_name
-            );
+    pub fn delete_column(&mut self, column_name: &str) -> Result<(), Box<dyn Error>> {
+        if let Some(idx) = self.get_column_idx_option(column_name) {
+            for row in &mut self.rows {
+                row.delete(idx);
+            }
+            self.column_names.remove(idx);
+            self.changed = true;
+            Ok(())
+        } else {
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("column {} not found", column_name),
+            )))
         }
-        let idx = idx.unwrap();
-        for row in &mut self.rows {
-            row.delete(idx);
-        }
-        self.column_names.remove(idx);
-        self.changed = true;
     }
 
-    pub fn insert(&mut self, values: Vec<&str>) {
+    pub fn insert(&mut self, values: Vec<&str>) -> Result<(), Box<dyn Error>> {
         let mut row = Row::new();
         for value in &values {
             row.add_parse(value);
         }
         if self.column_names.len() != values.len() {
-            panic!(
-                "Table::insert({}, {:?}): tried to insert {} items, but have {} columns.",
-                self.name,
-                values,
-                self.column_names.len(),
-                values.len(),
-            );
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::insert({}, {:?}): tried to insert {} items, but have {} columns.",
+                    self.name,
+                    values,
+                    self.column_names.len(),
+                    values.len(),
+                ),
+            )));
         }
         self.rows.push(row);
         self.changed = true;
+        Ok(())
     }
 
     pub fn select(&self) -> Vec<Vec<Data>> {

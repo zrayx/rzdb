@@ -75,78 +75,85 @@ impl Db {
         Ok(())
     }
 
-    pub fn create_table(&mut self, name: &str) {
+    pub fn create_table(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+        for table in &mut self.tables {
+            if table.name == name {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    "Table already exists",
+                )));
+            }
+        }
         self.tables.push(Table::create(name));
+        Ok(())
     }
 
-    pub fn create_column(&mut self, table_name: &str, column_name: &str) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].create_column(column_name);
-        } else {
-            panic!(
-                "Db::create_column {}: could not find table {}",
-                column_name, table_name
-            );
-        }
+    pub fn create_column(
+        &mut self,
+        table_name: &str,
+        column_name: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        self.tables[id].create_column(column_name)
     }
 
-    pub fn rename_column(&mut self, table_name: &str, old_name: &str, new_name: &str) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].rename_column(old_name, new_name);
-        } else {
-            panic!(
-                "Db::rename_column {}: could not find table {}",
-                old_name, table_name
-            );
-        }
+    pub fn rename_column(
+        &mut self,
+        table_name: &str,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        self.tables[id].rename_column(old_name, new_name)
     }
 
-    pub fn insert_column_at(&mut self, table_name: &str, column_name: &str, index: usize) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].insert_column_at(column_name, index);
-        } else {
-            panic!(
-                "Db::insert_column_at {}: could not find table {}",
-                column_name, table_name
-            );
-        }
+    pub fn insert_column_at(
+        &mut self,
+        table_name: &str,
+        column_name: &str,
+        index: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].insert_column_at(column_name, index))
     }
 
-    pub fn insert_row_at(&mut self, table_name: &str, index: usize) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].insert_row_at(index);
-        } else {
-            panic!(
-                "Db::insert_row_at {}: could not find table {}",
-                index, table_name
-            );
-        }
+    pub fn insert_row_at(&mut self, table_name: &str, index: usize) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].insert_row_at(index))
     }
 
-    pub fn delete_row_at(&mut self, table_name: &str, row_idx: usize) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].delete_row(row_idx);
-        } else {
-            panic!(
-                "Db::delete_row {}: could not find table {}",
-                row_idx, table_name
-            );
-        }
+    pub fn delete_row_at(
+        &mut self,
+        table_name: &str,
+        row_idx: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].delete_row(row_idx))
     }
 
-    pub fn delete_column(&mut self, table_name: &str, column_name: &str) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].delete_column(column_name);
-        } else {
-            panic!(
-                "Db::delete_column {}: could not find table {}",
-                column_name, table_name
-            );
-        }
+    pub fn delete_column(
+        &mut self,
+        table_name: &str,
+        column_name: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        self.tables[id].delete_column(column_name)
     }
 
     pub fn exists(&self, table_name: &str) -> bool {
         self.get_table_id(table_name).is_some()
+    }
+
+    pub fn get_table_id_result(&self, name: &str) -> Result<usize, Box<dyn Error>> {
+        for (idx, table) in self.tables.iter().enumerate() {
+            if table.name == name {
+                return Ok(idx);
+            }
+        }
+        Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Table {} not found", name),
+        )))
     }
 
     pub fn get_table_id(&self, name: &str) -> Option<usize> {
@@ -158,78 +165,57 @@ impl Db {
         None
     }
 
-    pub fn insert(&mut self, table_name: &str, values: Vec<&str>) {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].insert(values);
-        } else {
-            panic!(
-                "Db::insert({}, {:?}): could not find table",
-                table_name, values
-            );
-        }
+    pub fn insert(&mut self, table_name: &str, values: Vec<&str>) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        self.tables[id].insert(values)
     }
 
-    pub fn select_from(&self, table_name: &str) -> Vec<Vec<Data>> {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].select()
-        } else {
-            panic!("Db::select_from({}): could not find table", table_name);
-        }
+    pub fn select_from(&self, table_name: &str) -> Result<Vec<Vec<Data>>, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].select())
     }
 
-    pub fn select_at(&self, table_name: &str, col_idx: usize, row_idx: usize) -> Data {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].select_at(col_idx, row_idx)
-        } else {
-            panic!(
-                "Db::select_at({}, {}, {}): could not find table",
-                table_name, row_idx, col_idx
-            );
-        }
+    pub fn select_at(
+        &self,
+        table_name: &str,
+        col_idx: usize,
+        row_idx: usize,
+    ) -> Result<Data, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].select_at(col_idx, row_idx))
     }
 
-    pub fn to_string(&self, table_name: &str) -> String {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].to_string()
-        } else {
-            panic!("Db::to_string({}): could not find table", table_name);
-        }
+    pub fn to_string(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].to_string())
     }
 
     pub fn get_name(&self) -> String {
         self.name.clone()
     }
 
-    pub fn get_column_name_at(&self, table_name: &str, idx: usize) -> String {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].get_column_name_at(idx)
-        } else {
-            panic!("Db::get_column_names({}): could not find table", table_name);
-        }
+    pub fn get_column_name_at(
+        &self,
+        table_name: &str,
+        idx: usize,
+    ) -> Result<String, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].get_column_name_at(idx))
     }
 
-    pub fn get_column_names(&self, table_name: &str) -> Vec<String> {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].get_column_names()
-        } else {
-            panic!("Db::get_column_names({}): could not find table", table_name);
-        }
+    pub fn get_column_names(&self, table_name: &str) -> Result<Vec<String>, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].get_column_names())
     }
 
-    pub fn get_row_count(&self, table_name: &str) -> usize {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].row_count()
-        } else {
-            panic!("Db::row_count({}): could not find table", table_name);
-        }
+    pub fn get_row_count(&self, table_name: &str) -> Result<usize, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].row_count())
     }
 
-    pub fn get_column_count(&self, table_name: &str) -> usize {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].column_count()
-        } else {
-            panic!("Db::column_count({}): could not find table", table_name);
-        }
+    pub fn get_column_count(&self, table_name: &str) -> Result<usize, Box<dyn Error>> {
+        let id = self.get_table_id_result(table_name)?;
+        Ok(self.tables[id].column_count())
     }
 
     pub fn set_at(
@@ -239,10 +225,7 @@ impl Db {
         column_idx: usize,
         value: Data,
     ) -> Result<(), Box<dyn Error>> {
-        if let Some(id) = self.get_table_id(table_name) {
-            self.tables[id].set_at(row_idx, column_idx, value)
-        } else {
-            panic!("Db::column_count({}): could not find table", table_name);
-        }
+        let id = self.get_table_id_result(table_name)?;
+        self.tables[id].set_at(row_idx, column_idx, value)
     }
 }
