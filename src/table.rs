@@ -124,7 +124,7 @@ impl Table {
     }
 
     pub fn rename_column(&mut self, old_name: &str, new_name: &str) -> Result<(), Box<dyn Error>> {
-        if let Ok(_) = self.get_column_idx_result(new_name) {
+        if self.get_column_idx_result(new_name).is_ok() {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::AlreadyExists,
                 format!("column {} already exists", new_name),

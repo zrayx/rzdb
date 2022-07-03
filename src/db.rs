@@ -114,12 +114,14 @@ impl Db {
         index: usize,
     ) -> Result<(), Box<dyn Error>> {
         let id = self.get_table_id_result(table_name)?;
-        Ok(self.tables[id].insert_column_at(column_name, index))
+        self.tables[id].insert_column_at(column_name, index);
+        Ok(())
     }
 
     pub fn insert_row_at(&mut self, table_name: &str, index: usize) -> Result<(), Box<dyn Error>> {
         let id = self.get_table_id_result(table_name)?;
-        Ok(self.tables[id].insert_row_at(index))
+        self.tables[id].insert_row_at(index);
+        Ok(())
     }
 
     pub fn delete_row_at(
@@ -128,7 +130,8 @@ impl Db {
         row_idx: usize,
     ) -> Result<(), Box<dyn Error>> {
         let id = self.get_table_id_result(table_name)?;
-        Ok(self.tables[id].delete_row(row_idx))
+        self.tables[id].delete_row(row_idx);
+        Ok(())
     }
 
     pub fn delete_column(

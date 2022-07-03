@@ -26,6 +26,18 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Run example basic",
+            "args": [],
+            "program": "${workspaceFolder}/target/debug/examples/basic",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cargo build",
+            "env": {
+                "RUST_BACKTRACE": "1"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Run example load_save",
             "args": [],
             "program": "${workspaceFolder}/target/debug/examples/load_save",
