@@ -66,7 +66,10 @@ impl Db {
                 let timestamp = Timestamp::now().to_filename_string();
                 let backup_filename =
                     format!("{}/{}-{}.csv", self.backup_path, table.name, timestamp);
-                std::fs::copy(&filename, &backup_filename)?;
+                // check that the source file exists
+                if std::fs::metadata(&filename).is_ok() {
+                    std::fs::copy(&filename, &backup_filename)?;
+                }
 
                 table.save(&filename)?;
             }
