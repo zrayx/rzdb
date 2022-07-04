@@ -1,11 +1,13 @@
+use crate::time::{Date, Time};
+
 #[derive(Clone, PartialEq)]
 pub enum Data {
     String(String),
     Empty,
-    //Float(f64),
-    //I64(i64),
-    //Date(Date),
-    //Time(Time),
+    Float(f64),
+    Int(i64),
+    Date(Date),
+    Time(Time),
 }
 
 fn encode_for_csv(s: &str) -> String {
@@ -36,19 +38,15 @@ fn encode_for_csv(s: &str) -> String {
 
     out
 }
-
-// iterator for decoding csv
 struct CsvIterator<'a> {
     s: &'a str,
     pos: usize,
 }
-
 impl<'a> CsvIterator<'a> {
     fn new(s: &'a str) -> CsvIterator<'a> {
         CsvIterator { s, pos: 0 }
     }
 }
-
 impl<'a> Iterator for CsvIterator<'a> {
     type Item = String;
 
@@ -121,7 +119,51 @@ impl<'a> Iterator for CsvIterator<'a> {
 
 impl Data {
     pub fn parse(s: &str) -> Data {
-        Data::String(s.to_string())
+        if s.is_empty() {
+            Data::Empty
+        } else if let Ok(n) = Data::parse_date(s) {
+            Data::Date(n)
+        } else if let Ok(n) = Data::parse_time(s) {
+            Data::Time(n)
+        } else if let Ok(n) = Data::parse_int(s) {
+            Data::Int(n)
+        } else if let Ok(n) = Data::parse_f64(s) {
+            Data::Float(n)
+        } else {
+            Data::String(s.to_string())
+        }
+    }
+
+    pub fn parse_int(s: &str) -> Result<i64, &'static str> {
+        if let Ok(n) = s.parse::<i64>() {
+            Ok(n)
+        } else {
+            Err("Not a number")
+        }
+    }
+
+    pub fn parse_f64(s: &str) -> Result<f64, &'static str> {
+        if let Ok(n) = s.parse::<f64>() {
+            Ok(n)
+        } else {
+            Err("Not a number")
+        }
+    }
+
+    pub fn parse_date(s: &str) -> Result<Date, &'static str> {
+        if let Ok(n) = Date::parse(s) {
+            Ok(n)
+        } else {
+            Err("Not a date")
+        }
+    }
+
+    pub fn parse_time(s: &str) -> Result<Time, &'static str> {
+        if let Ok(n) = Time::parse(s) {
+            Ok(n)
+        } else {
+            Err("Not a time")
+        }
     }
 
     pub fn decode_line(s: &str) -> Vec<Data> {
@@ -135,6 +177,10 @@ impl Data {
     pub fn encode_for_csv(&self) -> String {
         match self {
             Data::String(s) => encode_for_csv(s),
+            Data::Int(n) => n.to_string(),
+            Data::Float(n) => n.to_string(),
+            Data::Date(n) => n.to_string(),
+            Data::Time(n) => n.to_string(),
             Data::Empty => "".to_string(),
         }
     }
@@ -146,7 +192,11 @@ impl std::fmt::Display for Data {
             f,
             "{}",
             match self {
-                Data::String(s) => s.clone(),
+                Data::String(s) => s.to_string(),
+                Data::Int(n) => n.to_string(),
+                Data::Float(n) => n.to_string(),
+                Data::Date(n) => n.to_string(),
+                Data::Time(n) => n.to_string(),
                 Data::Empty => "".to_string(),
             }
         )
@@ -155,14 +205,7 @@ impl std::fmt::Display for Data {
 
 impl std::fmt::Debug for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Data::String(s) => s.clone(),
-                Data::Empty => "".to_string(),
-            }
-        )
+        write!(f, "{}", self)
     }
 }
 
@@ -194,5 +237,21 @@ mod tests {
         assert_eq!(d("newline: \\n"), vec![s("newline: \n")]);
         assert_eq!(d("carriage return: \\r"), vec![s("carriage return: \r")]);
         assert_eq!(d("tab: \\t, t2: \\t"), vec![s("tab: \t"), s(" t2: \t")]);
+    }
+
+    #[test]
+    fn test_parse() {
+        for d in vec![
+            ("1.1", Data::Float(1.1)),
+            ("1", Data::Int(1)),
+            ("12:24:00", Data::Time(Time::new(12 * 3600 + 24 * 60))),
+            ("2024-01-01", Data::Date(Date::new(2024, 1, 1))),
+            ("1.1.23", Data::Date(Date::new(2023, 1, 1))),
+            ("1.1.", Data::Date(Date::new(2022, 1, 1))),
+        ] {
+            let left = Data::parse(d.0);
+            let right = d.1;
+            assert_eq!(left, right);
+        }
     }
 }

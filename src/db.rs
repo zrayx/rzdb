@@ -13,16 +13,24 @@ pub struct Db {
 
 impl Db {
     fn path_names(name: &str, path: &str) -> (String, String) {
-        let full_path = format!("{}/{}", path, name);
-        let backup_path = format!("{}/{}/backup", path, name);
+        let full_path = if !path.is_empty() && path.starts_with('~') {
+            let user_home_dir = std::env::var("HOME").unwrap();
+            format!(
+                "{}/{}/{}",
+                user_home_dir,
+                path.to_string().chars().skip(1).collect::<String>(),
+                name
+            )
+        } else {
+            format!("{}/{}", path, name)
+        };
+        let backup_path = format!("{}/{}/backup", &full_path, name);
         (full_path, backup_path)
     }
 
     pub fn create(db_name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
         // create path
         let (full_path, backup_path) = Db::path_names(db_name, path);
-        std::fs::create_dir_all(&full_path).unwrap();
-        std::fs::create_dir_all(&backup_path).unwrap();
 
         Ok(Db {
             name: db_name.to_string(),
@@ -61,8 +69,11 @@ impl Db {
     }
 
     pub fn save(&mut self) -> Result<(), Box<dyn Error>> {
+        std::fs::create_dir_all(&self.full_path).unwrap();
+        std::fs::create_dir_all(&self.backup_path).unwrap();
+
         for table in &mut self.tables {
-            if table.is_changed() {
+            if table.get_name() != "." && table.is_changed() {
                 let filename = format!("{}/{}.csv", self.full_path, table.get_name());
 
                 let timestamp = Timestamp::now().to_filename_string();
@@ -108,9 +119,10 @@ impl Db {
         Ok(())
     }
 
+    /// saves the table to backup, removes the table from the database in memory and deletes the file
     pub fn drop_table(&mut self, table_name: &str) -> Result<(), Box<dyn Error>> {
         // save database, ignore error if it fails
-        if let Err(_) = self.save() {}
+        if self.save().is_err() {}
 
         for (idx, table) in self.tables.iter().enumerate() {
             if table.get_name() == table_name {

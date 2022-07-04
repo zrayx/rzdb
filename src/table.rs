@@ -33,9 +33,21 @@ impl Table {
         // rows
         let column_count = column_names.len();
         let mut rows = vec![];
-        for line in lines {
+        for (idx, line) in lines.enumerate() {
             let mut row = Row::new();
             let mut data = Data::decode_line(line);
+            if data.len() > column_count {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Table::load({}): table has {} columns, but row nr. {} has {} columns)",
+                        full_name,
+                        data.len(),
+                        idx,
+                        column_count,
+                    ),
+                )));
+            }
             while data.len() < column_count {
                 data.push(Data::Empty);
             }
