@@ -18,25 +18,29 @@ impl Db {
         (full_path, backup_path)
     }
 
-    pub fn create(name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
+    pub fn create(db_name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
         // create path
-        let (full_path, backup_path) = Db::path_names(name, path);
+        let (full_path, backup_path) = Db::path_names(db_name, path);
         std::fs::create_dir_all(&full_path).unwrap();
         std::fs::create_dir_all(&backup_path).unwrap();
 
         Ok(Db {
-            name: name.to_string(),
+            name: db_name.to_string(),
             full_path,
             backup_path,
             tables: vec![],
         })
     }
 
-    pub fn load(name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
-        let (full_path, backup_path) = Db::path_names(name, path);
+    fn table_filename(&self, table_name: &str) -> String {
+        format!("{}/{}.csv", self.full_path, table_name)
+    }
+
+    pub fn load(db_name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
+        let (full_path, backup_path) = Db::path_names(db_name, path);
 
         let mut db = Db {
-            name: name.to_string(),
+            name: db_name.to_string(),
             full_path,
             backup_path,
             tables: vec![],
@@ -80,27 +84,44 @@ impl Db {
         Ok(())
     }
 
-    pub fn create_table(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+    pub fn create_table(&mut self, table_name: &str) -> Result<(), Box<dyn Error>> {
         for table in &mut self.tables {
-            if table.get_name() == name {
+            if table.get_name() == table_name {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::AlreadyExists,
                     "Table already exists",
                 )));
             }
         }
-        self.tables.push(Table::create(name));
+        self.tables.push(Table::create(table_name));
         Ok(())
     }
 
-    pub fn create_or_replace_table(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+    pub fn create_or_replace_table(&mut self, table_name: &str) -> Result<(), Box<dyn Error>> {
         for table in &mut self.tables {
-            if table.get_name() == name {
+            if table.get_name() == table_name {
                 table.delete_all();
                 return Ok(());
             }
         }
-        self.tables.push(Table::create(name));
+        self.tables.push(Table::create(table_name));
+        Ok(())
+    }
+
+    pub fn drop_table(&mut self, table_name: &str) -> Result<(), Box<dyn Error>> {
+        // save database, ignore error if it fails
+        if let Err(_) = self.save() {}
+
+        for (idx, table) in self.tables.iter().enumerate() {
+            if table.get_name() == table_name {
+                self.tables.remove(idx);
+                break;
+            }
+        }
+
+        // remove filename
+        let filename = self.table_filename(table_name);
+        std::fs::remove_file(&filename)?;
         Ok(())
     }
 
