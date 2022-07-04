@@ -49,9 +49,7 @@ impl Db {
             let filename = path.file_name().unwrap().to_str().unwrap();
             let full_filename = format!("{}/{}", &db.full_path, filename);
             if filename.ends_with(".csv") {
-                println!("a1 filename: {}, db_path: {}", filename, &db.full_path);
                 let table = Table::load(&full_filename)?;
-                println!("a2");
                 db.tables.push(table);
             }
         }
@@ -61,12 +59,16 @@ impl Db {
     pub fn save(&mut self) -> Result<(), Box<dyn Error>> {
         for table in &mut self.tables {
             if table.is_changed() {
-                let filename = format!("{}/{}.csv", self.full_path, table.name);
+                let filename = format!("{}/{}.csv", self.full_path, table.get_name());
 
                 let timestamp = Timestamp::now().to_filename_string();
-                let backup_filename =
-                    format!("{}/{}-{}.csv", self.backup_path, table.name, timestamp);
-                // check that the source file exists
+                let backup_filename = format!(
+                    "{}/{}-{}.csv",
+                    self.backup_path,
+                    table.get_name(),
+                    timestamp
+                );
+
                 if std::fs::metadata(&filename).is_ok() {
                     std::fs::copy(&filename, &backup_filename)?;
                 }
@@ -80,11 +82,22 @@ impl Db {
 
     pub fn create_table(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
         for table in &mut self.tables {
-            if table.name == name {
+            if table.get_name() == name {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::AlreadyExists,
                     "Table already exists",
                 )));
+            }
+        }
+        self.tables.push(Table::create(name));
+        Ok(())
+    }
+
+    pub fn create_or_replace_table(&mut self, name: &str) -> Result<(), Box<dyn Error>> {
+        for table in &mut self.tables {
+            if table.get_name() == name {
+                table.delete_all();
+                return Ok(());
             }
         }
         self.tables.push(Table::create(name));
@@ -152,7 +165,7 @@ impl Db {
 
     pub fn get_table_id_result(&self, name: &str) -> Result<usize, Box<dyn Error>> {
         for (idx, table) in self.tables.iter().enumerate() {
-            if table.name == name {
+            if table.get_name() == name {
                 return Ok(idx);
             }
         }
@@ -164,7 +177,7 @@ impl Db {
 
     pub fn get_table_id(&self, name: &str) -> Option<usize> {
         for (idx, table) in self.tables.iter().enumerate() {
-            if table.name == name {
+            if table.get_name() == name {
                 return Some(idx);
             }
         }
@@ -188,7 +201,7 @@ impl Db {
         row_idx: usize,
     ) -> Result<Data, Box<dyn Error>> {
         let id = self.get_table_id_result(table_name)?;
-        Ok(self.tables[id].select_at(col_idx, row_idx))
+        self.tables[id].select_at(col_idx, row_idx)
     }
 
     pub fn to_string(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
@@ -198,6 +211,10 @@ impl Db {
 
     pub fn get_name(&self) -> String {
         self.name.clone()
+    }
+
+    pub fn get_table_names(&self) -> Vec<String> {
+        self.tables.iter().map(|t| t.get_name()).collect()
     }
 
     pub fn get_column_name_at(

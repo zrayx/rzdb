@@ -23,6 +23,10 @@ impl Row {
         self.add(data);
     }
 
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn select(&self) -> Vec<Data> {
         let mut result = vec![];
         for datum in &self.data {
@@ -31,8 +35,18 @@ impl Row {
         result
     }
 
-    pub fn select_at(&self, idx: usize) -> Data {
-        self.data[idx].clone()
+    pub fn select_at(&self, idx: usize) -> Result<Data, Box<dyn Error>> {
+        if idx >= self.data.len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Row::select_at({}): index out of bounds ({} columns)",
+                    idx,
+                    self.data.len(),
+                ),
+            )));
+        }
+        Ok(self.data[idx].clone())
     }
 
     pub fn set_at(&mut self, idx: usize, value: Data) -> Result<(), Box<dyn Error>> {

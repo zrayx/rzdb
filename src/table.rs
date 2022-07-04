@@ -3,7 +3,7 @@ use crate::row::Row;
 use std::error::Error;
 
 pub struct Table {
-    pub name: String,
+    name: String,
     column_names: Vec<String>,
     rows: Vec<Row>,
     changed: bool,
@@ -50,7 +50,7 @@ impl Table {
             .split('/')
             .last()
             .unwrap()
-            .split('.')
+            .split(".csv")
             .next()
             .unwrap()
             .to_string();
@@ -91,6 +91,10 @@ impl Table {
 
     pub fn is_changed(&self) -> bool {
         self.changed
+    }
+
+    pub fn get_name(&self) -> String {
+        self.name.clone()
     }
 
     pub fn get_column_idx_result(&self, name: &str) -> Result<usize, Box<dyn Error>> {
@@ -151,6 +155,12 @@ impl Table {
         self.changed = true;
     }
 
+    pub fn delete_all(&mut self) {
+        self.column_names.clear();
+        self.rows.clear();
+        self.changed = true;
+    }
+
     pub fn delete_row(&mut self, row_idx: usize) {
         self.rows.remove(row_idx);
         self.changed = true;
@@ -202,7 +212,28 @@ impl Table {
         result
     }
 
-    pub fn select_at(&self, col_idx: usize, row_idx: usize) -> Data {
+    pub fn select_at(&self, col_idx: usize, row_idx: usize) -> Result<Data, Box<dyn Error>> {
+        if row_idx >= self.rows.len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::select_at({}, {}): row index out of bounds ({} rows)",
+                    col_idx,
+                    row_idx,
+                    self.rows.len()
+                ),
+            )));
+        }
+        let len = self.rows[row_idx].len();
+        if col_idx >= len {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::select_at({}, {}): column index out of bounds ({} columns)",
+                    col_idx, row_idx, len
+                ),
+            )));
+        }
         self.rows[row_idx].select_at(col_idx)
     }
 
