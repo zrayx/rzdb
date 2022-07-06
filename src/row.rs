@@ -35,6 +35,14 @@ impl Row {
         result
     }
 
+    pub fn select_at_multiple(&self, indices: &[usize]) -> Row {
+        let mut result = vec![];
+        for index in indices {
+            result.push(self.data[*index].clone());
+        }
+        Row::new_from(result)
+    }
+
     pub fn select_at(&self, idx: usize) -> Result<Data, Box<dyn Error>> {
         if idx >= self.data.len() {
             return Err(Box::new(std::io::Error::new(

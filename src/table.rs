@@ -216,12 +216,71 @@ impl Table {
         Ok(())
     }
 
+    pub fn append_rows(&mut self, rows: &mut Vec<Row>) -> Result<(), Box<dyn Error>> {
+        if rows.len() > 0 && self.column_count() != rows.first().unwrap().len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::append_rows() (table: {}): tried to append {} items, but have {} columns.",
+                    self.name,
+                    self.column_names.len(),
+                    rows.first().unwrap().len(),
+                ),
+            )));
+        }
+        self.rows.append(rows);
+        self.changed = true;
+        Ok(())
+    }
+
     pub fn select(&self) -> Vec<Vec<Data>> {
         let mut result = vec![];
         for row in &self.rows {
             result.push(row.select());
         }
         result
+    }
+
+    pub fn select_where(
+        &self,
+        column_names: &[&str],
+        start_row: usize,
+        end_row: usize,
+    ) -> Result<Vec<Row>, Box<dyn Error>> {
+        if end_row > self.rows.len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::select_where({}, {}, {}): end row {} is out of bounds.",
+                    self.name,
+                    start_row,
+                    end_row,
+                    self.rows.len(),
+                ),
+            )));
+        }
+
+        let mut column_ids = vec![];
+        for column_name in column_names {
+            if let Some(idx) = self.get_column_idx_option(column_name) {
+                column_ids.push(idx);
+            } else {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Table::select_where({}, {}, {}): column {} not found.",
+                        self.name, start_row, end_row, column_name,
+                    ),
+                )));
+            }
+        }
+
+        let mut result = vec![];
+        for row_idx in start_row..end_row {
+            let row = &self.rows[row_idx];
+            result.push(row.select_at_multiple(&column_ids));
+        }
+        Ok(result)
     }
 
     pub fn select_at(&self, col_idx: usize, row_idx: usize) -> Result<Data, Box<dyn Error>> {

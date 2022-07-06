@@ -237,6 +237,29 @@ impl Db {
         self.tables[id].select_at(col_idx, row_idx)
     }
 
+    pub fn select_into(
+        &mut self,
+        dest_table: &str,
+        source_table: &str,
+        columns: &[&str],
+        start: usize,
+        end: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        self.create_or_replace_table(dest_table)?;
+        let dest_id = self.get_table_id_result(dest_table)?;
+
+        for column in columns {
+            self.tables[dest_id].create_column(column)?;
+        }
+
+        let id = self.get_table_id_result(source_table)?;
+        let table = &self.tables[id];
+
+        let mut rows = table.select_where(columns, start, end)?;
+        self.tables[dest_id].append_rows(&mut rows)?;
+        Ok(())
+    }
+
     pub fn to_string(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
         let id = self.get_table_id_result(table_name)?;
         Ok(self.tables[id].to_string())
