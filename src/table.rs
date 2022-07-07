@@ -152,13 +152,16 @@ impl Table {
         Ok(())
     }
 
-    pub fn insert_row_at(&mut self, index: usize) {
+    pub fn insert_empty_row_at(&mut self, index: usize) {
         let column_count = self.column_count();
         self.rows
             .insert(index, Row::new_from(vec![Data::Empty; column_count]));
         self.changed = true;
     }
-
+    pub fn insert_rows_at(&mut self, index: usize, rows: Vec<Row>) {
+        self.rows.splice(index..index, rows);
+        self.changed = true;
+    }
     pub fn insert_column_at(&mut self, column_name: &str, idx: usize) {
         self.column_names.insert(idx, column_name.to_string());
         for row in &mut self.rows {
@@ -215,9 +218,12 @@ impl Table {
         self.changed = true;
         Ok(())
     }
-
+    pub fn insert_into_at(&mut self, index: usize, rows: Vec<Row>) {
+        self.rows.splice(index..index, rows);
+        self.changed = true;
+    }
     pub fn append_rows(&mut self, rows: &mut Vec<Row>) -> Result<(), Box<dyn Error>> {
-        if rows.len() > 0 && self.column_count() != rows.first().unwrap().len() {
+        if !rows.is_empty() && self.column_count() != rows.first().unwrap().len() {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!(
@@ -233,10 +239,10 @@ impl Table {
         Ok(())
     }
 
-    pub fn select(&self) -> Vec<Vec<Data>> {
+    pub fn select(&self) -> Vec<Row> {
         let mut result = vec![];
         for row in &self.rows {
-            result.push(row.select());
+            result.push(row.clone());
         }
         result
     }

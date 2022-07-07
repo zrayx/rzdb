@@ -14,6 +14,12 @@ impl Row {
         Row { data }
     }
 
+    pub fn clone(&self) -> Row {
+        Row {
+            data: self.data.clone(),
+        }
+    }
+
     pub fn add(&mut self, data: Data) {
         self.data.push(data);
     }
@@ -68,5 +74,17 @@ impl Row {
 
     pub fn delete(&mut self, idx: usize) {
         self.data.remove(idx);
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<Data> {
+        self.data.iter()
+    }
+    pub fn into_iter(self) -> std::vec::IntoIter<Data> {
+        self.data.into_iter()
+    }
+}
+impl Default for Row {
+    fn default() -> Row {
+        Row::new()
     }
 }

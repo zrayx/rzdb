@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use crate::data::Data;
+use crate::row::Row;
 use crate::table::Table;
 use crate::time::Timestamp;
 
@@ -142,7 +143,7 @@ impl Db {
         table_name: &str,
         column_name: &str,
     ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].create_column(column_name)
     }
 
@@ -152,7 +153,7 @@ impl Db {
         old_name: &str,
         new_name: &str,
     ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].rename_column(old_name, new_name)
     }
 
@@ -162,23 +163,50 @@ impl Db {
         column_name: &str,
         index: usize,
     ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].insert_column_at(column_name, index);
         Ok(())
     }
 
-    pub fn insert_row_at(&mut self, table_name: &str, index: usize) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
-        self.tables[id].insert_row_at(index);
+    pub fn insert_empty_row_at(
+        &mut self,
+        table_name: &str,
+        index: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert_empty_row_at(index);
         Ok(())
     }
-
+    pub fn insert_rows_at(
+        &mut self,
+        table_name: &str,
+        index: usize,
+        rows: Vec<Row>,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert_rows_at(index, rows);
+        Ok(())
+    }
+    /// insert all of source_table into dest_table at index
+    pub fn insert_into_at(
+        &mut self,
+        source_table: &str,
+        dest_table: &str,
+        index: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let source_id = self.get_table_id(source_table)?;
+        let dest_id = self.get_table_id(dest_table)?;
+        let source_table = &self.tables[source_id];
+        let rows = source_table.select();
+        self.tables[dest_id].insert_into_at(index, rows);
+        Ok(())
+    }
     pub fn delete_row_at(
         &mut self,
         table_name: &str,
         row_idx: usize,
     ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].delete_row(row_idx);
         Ok(())
     }
@@ -188,15 +216,15 @@ impl Db {
         table_name: &str,
         column_name: &str,
     ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].delete_column(column_name)
     }
 
     pub fn exists(&self, table_name: &str) -> bool {
-        self.get_table_id(table_name).is_some()
+        self.get_table_id(table_name).is_ok()
     }
 
-    pub fn get_table_id_result(&self, name: &str) -> Result<usize, Box<dyn Error>> {
+    pub fn get_table_id(&self, name: &str) -> Result<usize, Box<dyn Error>> {
         for (idx, table) in self.tables.iter().enumerate() {
             if table.get_name() == name {
                 return Ok(idx);
@@ -208,22 +236,13 @@ impl Db {
         )))
     }
 
-    pub fn get_table_id(&self, name: &str) -> Option<usize> {
-        for (idx, table) in self.tables.iter().enumerate() {
-            if table.get_name() == name {
-                return Some(idx);
-            }
-        }
-        None
-    }
-
     pub fn insert(&mut self, table_name: &str, values: Vec<&str>) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].insert(values)
     }
 
-    pub fn select_from(&self, table_name: &str) -> Result<Vec<Vec<Data>>, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+    pub fn select_from(&self, table_name: &str) -> Result<Vec<Row>, Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].select())
     }
 
@@ -233,10 +252,11 @@ impl Db {
         col_idx: usize,
         row_idx: usize,
     ) -> Result<Data, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].select_at(col_idx, row_idx)
     }
 
+    // create_or_replace() of dest table
     pub fn select_into(
         &mut self,
         dest_table: &str,
@@ -246,13 +266,13 @@ impl Db {
         end: usize,
     ) -> Result<(), Box<dyn Error>> {
         self.create_or_replace_table(dest_table)?;
-        let dest_id = self.get_table_id_result(dest_table)?;
+        let dest_id = self.get_table_id(dest_table)?;
 
         for column in columns {
             self.tables[dest_id].create_column(column)?;
         }
 
-        let id = self.get_table_id_result(source_table)?;
+        let id = self.get_table_id(source_table)?;
         let table = &self.tables[id];
 
         let mut rows = table.select_where(columns, start, end)?;
@@ -261,7 +281,7 @@ impl Db {
     }
 
     pub fn to_string(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].to_string())
     }
 
@@ -278,22 +298,22 @@ impl Db {
         table_name: &str,
         idx: usize,
     ) -> Result<String, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].get_column_name_at(idx))
     }
 
     pub fn get_column_names(&self, table_name: &str) -> Result<Vec<String>, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].get_column_names())
     }
 
     pub fn get_row_count(&self, table_name: &str) -> Result<usize, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].row_count())
     }
 
     pub fn get_column_count(&self, table_name: &str) -> Result<usize, Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].column_count())
     }
 
@@ -304,7 +324,7 @@ impl Db {
         column_idx: usize,
         value: Data,
     ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id_result(table_name)?;
+        let id = self.get_table_id(table_name)?;
         self.tables[id].set_at(row_idx, column_idx, value)
     }
 }
