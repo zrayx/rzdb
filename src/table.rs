@@ -222,6 +222,44 @@ impl Table {
         self.rows.splice(index..index, rows);
         self.changed = true;
     }
+    pub fn insert_columns_at(&mut self, index: usize, table: &Table) -> Result<(), Box<dyn Error>> {
+        // check number of rows is equal
+        if self.row_count() != table.row_count() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::insert_columns_at({}, {:?}): tried to insert {} rows, but have {} rows.",
+                    self.name,
+                    table.name,
+                    self.row_count(),
+                    table.row_count(),
+                ),
+            )));
+        }
+        // check for duplicates; TODO: use any(), because it looks cooler
+        let self_names = self.get_column_names();
+        let other_names = table.get_column_names();
+        for name in other_names {
+            if self_names.contains(&name) {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Table::insert_columns_at({}, {}): column {} already exists",
+                        self.name, table.name, name
+                    ),
+                )));
+            }
+        }
+        // insert column headers
+        self.column_names
+            .splice(index..index, table.get_column_names());
+        // insert columns
+        for (row_index, row) in &mut self.rows.iter_mut().enumerate() {
+            row.insert_columns_at(index, &table.rows[row_index].clone());
+        }
+        self.changed = true;
+        Ok(())
+    }
     pub fn append_rows(&mut self, rows: &mut Vec<Row>) -> Result<(), Box<dyn Error>> {
         if !rows.is_empty() && self.column_count() != rows.first().unwrap().len() {
             return Err(Box::new(std::io::Error::new(

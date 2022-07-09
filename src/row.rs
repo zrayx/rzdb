@@ -71,7 +71,9 @@ impl Row {
     pub fn insert_at(&mut self, idx: usize, value: Data) {
         self.data.insert(idx, value);
     }
-
+    pub fn insert_columns_at(&mut self, index: usize, other: &Row) {
+        self.data.splice(index..index, other.data.iter().cloned());
+    }
     pub fn delete(&mut self, idx: usize) {
         self.data.remove(idx);
     }

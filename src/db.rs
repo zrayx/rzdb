@@ -187,19 +187,38 @@ impl Db {
         self.tables[id].insert_rows_at(index, rows);
         Ok(())
     }
-    /// insert all of source_table into dest_table at index
+    /// insert all of source_table's rows into dest_table at index
     pub fn insert_into_at(
         &mut self,
         source_table: &str,
         dest_table: &str,
-        index: usize,
+        row_idx: usize,
     ) -> Result<(), Box<dyn Error>> {
         let source_id = self.get_table_id(source_table)?;
         let dest_id = self.get_table_id(dest_table)?;
         let source_table = &self.tables[source_id];
         let rows = source_table.select();
-        self.tables[dest_id].insert_into_at(index, rows);
+        self.tables[dest_id].insert_into_at(row_idx, rows);
         Ok(())
+    }
+    /// insert all of source_table's columns into dest_table at index
+    /// all columns must be unique, no duplicates allowed
+    pub fn insert_columns_at(
+        &mut self,
+        source_table: &str,
+        dest_table: &str,
+        col_idx: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let source_id = self.get_table_id(source_table)?;
+        let dest_id = self.get_table_id(dest_table)?;
+        let (source_table, dest_table) = if source_id < dest_id {
+            let tables = self.tables.split_at_mut(dest_id);
+            (&tables.0[source_id], &mut tables.1[0])
+        } else {
+            let tables = self.tables.split_at_mut(source_id);
+            (&tables.1[dest_id], &mut tables.0[0])
+        };
+        dest_table.insert_columns_at(col_idx, source_table)
     }
     pub fn delete_row_at(
         &mut self,
