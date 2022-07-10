@@ -22,39 +22,40 @@ impl Table {
     pub fn load(full_name: &str) -> Result<Table, Box<dyn Error>> {
         let content = std::fs::read_to_string(full_name)?;
 
-        let mut lines = content.lines();
-        let column_names: Vec<String> = lines
-            .next()
-            .unwrap()
-            .split(',')
-            .map(|s| s.to_string())
-            .collect();
+        let lines = content.lines();
+        let mut column_names: Vec<String> = vec![];
 
         // rows
-        let column_count = column_names.len();
         let mut rows = vec![];
         for (idx, line) in lines.enumerate() {
             let mut row = Row::new();
             let mut data = Data::decode_line(line);
-            if data.len() > column_count {
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!(
-                        "Table::load({}): table has {} columns, but row nr. {} has {} columns)",
-                        full_name,
-                        data.len(),
-                        idx,
-                        column_count,
-                    ),
-                )));
+            if idx == 0 {
+                for datum in data {
+                    column_names.push(datum.to_string());
+                }
+            } else {
+                let num_columns = column_names.len();
+                if data.len() > num_columns {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "Table::load({}): table has {} columns, but row nr. {} has {} columns)",
+                            full_name,
+                            data.len(),
+                            idx,
+                            num_columns,
+                        ),
+                    )));
+                }
+                while data.len() < num_columns {
+                    data.push(Data::Empty);
+                }
+                for datum in data {
+                    row.add(datum);
+                }
+                rows.push(row);
             }
-            while data.len() < column_count {
-                data.push(Data::Empty);
-            }
-            for datum in data {
-                row.add(datum);
-            }
-            rows.push(row);
         }
 
         // table name
@@ -81,7 +82,8 @@ impl Table {
             if idx > 0 {
                 out.push(',');
             }
-            out.push_str(name);
+            let encoded = Data::String(name.clone()).encode_for_csv();
+            out.push_str(&encoded.to_string());
         }
         out.push('\n');
 

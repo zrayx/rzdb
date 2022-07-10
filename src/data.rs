@@ -60,8 +60,8 @@ impl<'a> Iterator for CsvIterator<'a> {
         let mut old_char = 'x';
         let mut num_quotes = 0;
 
-        for c in self.s.chars().skip(self.pos) {
-            self.pos += 1;
+        for c in self.s[self.pos..].chars() {
+            self.pos += c.len_utf8();
             if in_escape {
                 match c {
                     'n' => out.push('\n'),
