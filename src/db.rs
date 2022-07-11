@@ -25,7 +25,7 @@ impl Db {
         } else {
             format!("{}/{}", path, name)
         };
-        let backup_path = format!("{}/{}/backup", &full_path, name);
+        let backup_path = format!("{}/backup", &full_path);
         (full_path, backup_path)
     }
 
