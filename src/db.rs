@@ -7,60 +7,58 @@ use crate::time::Timestamp;
 
 pub struct Db {
     pub name: String,
-    pub full_path: String,
-    pub backup_path: String,
+    pub db_dir: String,
     tables: Vec<Table>,
 }
 
 impl Db {
-    fn path_names(name: &str, path: &str) -> (String, String) {
-        let full_path = if !path.is_empty() && path.starts_with('~') {
-            let user_home_dir = std::env::var("HOME").unwrap();
-            format!(
-                "{}/{}/{}",
-                user_home_dir,
-                path.to_string().chars().skip(1).collect::<String>(),
-                name
-            )
+    fn expand_home_dir(path: &str) -> String {
+        if !path.is_empty() {
+            if path.starts_with('~') {
+                let user_home_dir = std::env::var("HOME").unwrap();
+                format!(
+                    "{}{}",
+                    user_home_dir,
+                    path.to_string().chars().skip(1).collect::<String>(),
+                )
+            } else {
+                path.to_string()
+            }
         } else {
-            format!("{}/{}", path, name)
-        };
-        let backup_path = format!("{}/backup", &full_path);
-        (full_path, backup_path)
+            "".to_string()
+        }
+    }
+    fn path_names(&self) -> (String, String) {
+        let expanded_db_dir = format!("{}/{}", Db::expand_home_dir(&self.db_dir), self.name);
+        let backup_path = format!("{}/backup", &expanded_db_dir);
+        (expanded_db_dir, backup_path)
     }
 
-    pub fn create(db_name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
-        // create path
-        let (full_path, backup_path) = Db::path_names(db_name, path);
-
-        Ok(Db {
-            name: db_name.to_string(),
-            full_path,
-            backup_path,
+    fn new(name: &str, db_dir: &str) -> Db {
+        Db {
+            name: name.to_string(),
+            db_dir: db_dir.to_string(),
             tables: vec![],
-        })
+        }
+    }
+    pub fn create(name: &str, db_dir: &str) -> Result<Db, Box<dyn Error>> {
+        Ok(Db::new(name, db_dir))
     }
 
     fn table_filename(&self, table_name: &str) -> String {
-        format!("{}/{}.csv", self.full_path, table_name)
+        let (full_path, _) = self.path_names();
+        format!("{}/{}.csv", full_path, table_name)
     }
 
-    pub fn load(db_name: &str, path: &str) -> Result<Db, Box<dyn Error>> {
-        let (full_path, backup_path) = Db::path_names(db_name, path);
-
-        let mut db = Db {
-            name: db_name.to_string(),
-            full_path,
-            backup_path,
-            tables: vec![],
-        };
-
+    pub fn load(name: &str, db_dir: &str) -> Result<Db, Box<dyn Error>> {
+        let mut db = Db::new(name, db_dir);
+        let (full_path, _) = db.path_names();
         // load each file in the directory
-        for entry in std::fs::read_dir(&db.full_path)? {
+        for entry in std::fs::read_dir(&full_path)? {
             let entry = entry?;
             let path = entry.path();
             let filename = path.file_name().unwrap().to_str().unwrap();
-            let full_filename = format!("{}/{}", &db.full_path, filename);
+            let full_filename = format!("{}/{}", &full_path, filename);
             if filename.ends_with(".csv") {
                 let table = Table::load(&full_filename)?;
                 db.tables.push(table);
@@ -70,20 +68,17 @@ impl Db {
     }
 
     pub fn save(&mut self) -> Result<(), Box<dyn Error>> {
-        std::fs::create_dir_all(&self.full_path).unwrap();
-        std::fs::create_dir_all(&self.backup_path).unwrap();
+        let (full_path, backup_path) = self.path_names();
+        std::fs::create_dir_all(&full_path).unwrap();
+        std::fs::create_dir_all(&backup_path).unwrap();
 
         for table in &mut self.tables {
             if table.get_name() != "." && table.is_changed() {
-                let filename = format!("{}/{}.csv", self.full_path, table.get_name());
+                let filename = format!("{}/{}.csv", &full_path, table.get_name());
 
                 let timestamp = Timestamp::now().to_filename_string();
-                let backup_filename = format!(
-                    "{}/{}-{}.csv",
-                    self.backup_path,
-                    table.get_name(),
-                    timestamp
-                );
+                let backup_filename =
+                    format!("{}/{}-{}.csv", &backup_path, table.get_name(), timestamp);
 
                 if std::fs::metadata(&filename).is_ok() {
                     std::fs::copy(&filename, &backup_filename)?;
@@ -95,7 +90,29 @@ impl Db {
 
         Ok(())
     }
-
+    pub fn get_database_names(&self) -> Result<Vec<String>, Box<dyn Error>> {
+        // list directories in db_dir
+        let mut db_names = Vec::new();
+        let db_dir = Db::expand_home_dir(&self.db_dir);
+        for entry in std::fs::read_dir(&db_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                db_names.push(path.file_name().unwrap().to_str().unwrap().to_string());
+            }
+        }
+        Ok(db_names)
+    }
+    pub fn get_table_names(&self) -> Vec<String> {
+        self.tables.iter().map(|t| t.get_name()).collect()
+    }
+    pub fn to_string(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        Ok(self.tables[id].to_string())
+    }
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
     pub fn create_table(&mut self, table_name: &str) -> Result<(), Box<dyn Error>> {
         for table in &mut self.tables {
             if table.get_name() == table_name {
@@ -297,19 +314,6 @@ impl Db {
         let mut rows = table.select_where(columns, start, end)?;
         self.tables[dest_id].append_rows(&mut rows)?;
         Ok(())
-    }
-
-    pub fn to_string(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
-        let id = self.get_table_id(table_name)?;
-        Ok(self.tables[id].to_string())
-    }
-
-    pub fn get_name(&self) -> String {
-        self.name.clone()
-    }
-
-    pub fn get_table_names(&self) -> Vec<String> {
-        self.tables.iter().map(|t| t.get_name()).collect()
     }
 
     pub fn get_column_name_at(
