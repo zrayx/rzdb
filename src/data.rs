@@ -121,51 +121,18 @@ impl Data {
     pub fn parse(s: &str) -> Data {
         if s.is_empty() {
             Data::Empty
-        } else if let Ok(n) = Data::parse_date(s) {
+        } else if let Ok(n) = Date::parse(s) {
             Data::Date(n)
-        } else if let Ok(n) = Data::parse_time(s) {
+        } else if let Ok(n) = Time::parse(s) {
             Data::Time(n)
-        } else if let Ok(n) = Data::parse_int(s) {
+        } else if let Ok(n) = s.parse::<i64>() {
             Data::Int(n)
-        } else if let Ok(n) = Data::parse_f64(s) {
+        } else if let Ok(n) = s.parse::<f64>() {
             Data::Float(n)
         } else {
             Data::String(s.to_string())
         }
     }
-
-    pub fn parse_int(s: &str) -> Result<i64, &'static str> {
-        if let Ok(n) = s.parse::<i64>() {
-            Ok(n)
-        } else {
-            Err("Not a number")
-        }
-    }
-
-    pub fn parse_f64(s: &str) -> Result<f64, &'static str> {
-        if let Ok(n) = s.parse::<f64>() {
-            Ok(n)
-        } else {
-            Err("Not a number")
-        }
-    }
-
-    pub fn parse_date(s: &str) -> Result<Date, &'static str> {
-        if let Ok(n) = Date::parse(s) {
-            Ok(n)
-        } else {
-            Err("Not a date")
-        }
-    }
-
-    pub fn parse_time(s: &str) -> Result<Time, &'static str> {
-        if let Ok(n) = Time::parse(s) {
-            Ok(n)
-        } else {
-            Err("Not a time")
-        }
-    }
-
     pub fn decode_line(s: &str) -> Vec<Data> {
         let mut out = vec![];
         for s in CsvIterator::new(s) {
@@ -173,7 +140,12 @@ impl Data {
         }
         out
     }
-
+    pub fn no_time_seconds(&self) -> String {
+        match self {
+            Data::Time(n) => n.to_string().chars().take(5).collect(),
+            _ => self.to_string(),
+        }
+    }
     pub fn encode_for_csv(&self) -> String {
         match self {
             Data::String(s) => encode_for_csv(s),
@@ -245,11 +217,30 @@ mod tests {
             ("1.1", Data::Float(1.1)),
             ("1", Data::Int(1)),
             ("12:24:00", Data::Time(Time::new(12 * 3600 + 24 * 60))),
+            ("12:24", Data::Time(Time::new(12 * 3600 + 24 * 60))),
+            ("02:24:00", Data::Time(Time::new(2 * 3600 + 24 * 60))),
+            ("02:04", Data::Time(Time::new(2 * 3600 + 4 * 60))),
             ("2024-01-01", Data::Date(Date::new(2024, 1, 1))),
             ("1.1.23", Data::Date(Date::new(2023, 1, 1))),
             ("1.1.", Data::Date(Date::new(2022, 1, 1))),
         ] {
             let left = Data::parse(d.0);
+            let right = d.1;
+            assert_eq!(left, right);
+        }
+    }
+
+    #[test]
+    fn test_display() {
+        for d in vec![
+            (Data::String("a".to_string()), "a"),
+            (Data::Int(1), "1"),
+            (Data::Float(1.1), "1.1"),
+            (Data::Date(Date::new(2024, 1, 1)), "2024-01-01"),
+            (Data::Time(Time::new(2 * 3600 + 4 * 60)), "02:04:00"),
+            (Data::Empty, ""),
+        ] {
+            let left = d.0.to_string();
             let right = d.1;
             assert_eq!(left, right);
         }

@@ -228,7 +228,17 @@ impl Time {
         let mut parts = s.split(':');
         let hours = parts.next().ok_or("Not a time")?.parse::<u8>()?;
         let minutes = parts.next().ok_or("Not a time")?.parse::<u8>()?;
-        let seconds = parts.next().ok_or("Not a time")?.parse::<u8>()?;
+        let seconds = if let Some(part) = parts.next() {
+            part.parse::<u8>()?
+        } else {
+            0
+        };
+        if parts.next().is_some() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Not a time: {}", s),
+            )));
+        }
         if Time::validate_time(hours, minutes, seconds) {
             Ok(Time {
                 seconds: hours as u32 * 3600 + minutes as u32 * 60 + seconds as u32,
