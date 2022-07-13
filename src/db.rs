@@ -33,6 +33,9 @@ impl Db {
         let backup_path = format!("{}/backup", &expanded_db_dir);
         (expanded_db_dir, backup_path)
     }
+    pub fn get_db_path(&self) -> String {
+        format!("{}", Db::expand_home_dir(&self.db_dir))
+    }
 
     fn new(name: &str, db_dir: &str) -> Db {
         Db {
