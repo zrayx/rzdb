@@ -220,6 +220,23 @@ impl Table {
         self.changed = true;
         Ok(())
     }
+    pub fn insert_data(&mut self, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
+        if self.column_names.len() != data.len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::insert({}, {:?}): tried to insert {} items, but have {} columns.",
+                    self.name,
+                    data,
+                    self.column_names.len(),
+                    data.len(),
+                ),
+            )));
+        }
+        self.rows.push(Row::new_from(data));
+        self.changed = true;
+        Ok(())
+    }
     pub fn insert_into_at(&mut self, index: usize, rows: Vec<Row>) {
         self.rows.splice(index..index, rows);
         self.changed = true;

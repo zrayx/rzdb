@@ -5,6 +5,14 @@ pub struct Row {
     data: Vec<Data>,
 }
 
+impl Clone for Row {
+    fn clone(&self) -> Row {
+        Row {
+            data: self.data.clone(),
+        }
+    }
+}
+
 impl Row {
     pub fn new() -> Row {
         Row { data: vec![] }
@@ -12,12 +20,6 @@ impl Row {
 
     pub fn new_from(data: Vec<Data>) -> Row {
         Row { data }
-    }
-
-    pub fn clone(&self) -> Row {
-        Row {
-            data: self.data.clone(),
-        }
     }
 
     pub fn add(&mut self, data: Data) {
@@ -31,6 +33,9 @@ impl Row {
 
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
     }
 
     pub fn select(&self) -> Vec<Data> {
@@ -81,7 +86,11 @@ impl Row {
     pub fn iter(&self) -> std::slice::Iter<Data> {
         self.data.iter()
     }
-    pub fn into_iter(self) -> std::vec::IntoIter<Data> {
+}
+impl std::iter::IntoIterator for Row {
+    type Item = Data;
+    type IntoIter = std::vec::IntoIter<Data>;
+    fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()
     }
 }

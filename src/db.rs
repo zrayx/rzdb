@@ -34,7 +34,7 @@ impl Db {
         (expanded_db_dir, backup_path)
     }
     pub fn get_db_path(&self) -> String {
-        format!("{}", Db::expand_home_dir(&self.db_dir))
+        Db::expand_home_dir(&self.db_dir)
     }
 
     fn new(name: &str, db_dir: &str) -> Db {
@@ -278,6 +278,15 @@ impl Db {
     pub fn insert(&mut self, table_name: &str, values: Vec<&str>) -> Result<(), Box<dyn Error>> {
         let id = self.get_table_id(table_name)?;
         self.tables[id].insert(values)
+    }
+
+    pub fn insert_data(
+        &mut self,
+        table_name: &str,
+        values: Vec<Data>,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert_data(values)
     }
 
     pub fn select_from(&self, table_name: &str) -> Result<Vec<Row>, Box<dyn Error>> {
