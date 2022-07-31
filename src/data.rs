@@ -144,6 +144,13 @@ impl Data {
         v.iter().map(|s| Data::parse(*s)).collect()
     }
 
+    pub fn as_join(&self) -> Option<&Join> {
+        match self {
+            Data::Join(j) => Some(j),
+            _ => None,
+        }
+    }
+
     pub fn decode_line(s: &str) -> Vec<Data> {
         let mut out = vec![];
         for s in CsvIterator::new(s) {
@@ -236,8 +243,8 @@ mod tests {
             ("2024-01-01", Data::Date(Date::new(2024, 1, 1))),
             ("1.1.23", Data::Date(Date::new(2023, 1, 1))),
             ("1.1.", Data::Date(Date::new(2022, 1, 1))),
-            ("[1,2,3]", Data::Join(Join::from(&[1, 2, 3]))),
-            ("[1]", Data::Join(Join::from(&[1]))),
+            ("[1,2,3]", Data::Join(Join::from(vec![1, 2, 3]))),
+            ("[1]", Data::Join(Join::from(vec![1]))),
         ] {
             let left = Data::parse(d.0);
             let right = d.1;
@@ -253,8 +260,8 @@ mod tests {
             (Data::Float(1.1), "1.1"),
             (Data::Date(Date::new(2024, 1, 1)), "2024-01-01"),
             (Data::Time(Time::new(2 * 3600 + 4 * 60)), "02:04:00"),
-            (Data::Join(Join::from(&[1, 2, 3])), "[1,2,3]"),
-            (Data::Join(Join::from(&[1])), "[1]"),
+            (Data::Join(Join::from(vec![1, 2, 3])), "[1,2,3]"),
+            (Data::Join(Join::from(vec![1])), "[1]"),
             (Data::Empty, ""),
         ] {
             let left = d.0.to_string();

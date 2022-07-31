@@ -2,7 +2,7 @@ use std::error::Error;
 
 #[derive(Clone, PartialEq)]
 pub struct Join {
-    v: Vec<i64>,
+    pub ids: Vec<i64>,
 }
 
 fn gen_error(msg: &str) -> Box<dyn Error> {
@@ -10,8 +10,8 @@ fn gen_error(msg: &str) -> Box<dyn Error> {
 }
 
 impl Join {
-    pub fn from(v: &[i64]) -> Join {
-        Join { v: v.to_vec() }
+    pub fn from(ids: Vec<i64>) -> Join {
+        Join { ids }
     }
     pub fn parse(s: &str) -> Result<Join, Box<dyn Error>> {
         let opening_bracket = s.chars().next().unwrap_or('x');
@@ -28,14 +28,14 @@ impl Join {
             let n = s.parse::<i64>()?;
             data.push(n);
         }
-        Ok(Join { v: data })
+        Ok(Join { ids: data })
     }
 }
 
 impl std::fmt::Display for Join {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "[")?;
-        for (i, n) in self.v.iter().enumerate() {
+        for (i, n) in self.ids.iter().enumerate() {
             if i > 0 {
                 write!(f, ",")?;
             }

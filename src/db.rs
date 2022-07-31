@@ -295,7 +295,7 @@ impl Db {
         self.tables[id].insert_data(values)
     }
 
-    pub fn multi_ids(&mut self, values: Vec<&str>) -> Result<Data, Box<dyn Error>> {
+    pub fn store_ids(&mut self, values: Vec<&str>) -> Result<Data, Box<dyn Error>> {
         let data = Data::parse_multi(&values);
         let table_ids = self.get_table_id(".ids")?;
         let mut ids = vec![];
@@ -305,7 +305,25 @@ impl Db {
             let line = vec![Data::Int(new_id as i64), Data::Int(1), datum.clone()];
             self.tables[table_ids].insert_data(line)?;
         }
-        Ok(Data::Join(Join::from(&ids)))
+        Ok(Data::Join(Join::from(ids)))
+    }
+
+    pub fn from_ids(&self, datum: Data) -> Result<Vec<Data>, Box<dyn Error>> {
+        if let Data::Join(join) = datum {
+            let table_ids = self.get_table_id(".ids")?;
+            let mut result = vec![];
+            for id in join.ids {
+                let datum = self.tables[table_ids].select_at(2, id as usize);
+                result.push(datum?);
+            }
+
+            Ok(result)
+        } else {
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Data must be a join",
+            )))
+        }
     }
 
     pub fn select_from(&self, table_name: &str) -> Result<Vec<Row>, Box<dyn Error>> {
@@ -380,5 +398,101 @@ impl Db {
     ) -> Result<(), Box<dyn Error>> {
         let id = self.get_table_id(table_name)?;
         self.tables[id].set_at(row_idx, column_idx, value)
+    }
+
+    pub fn display(&self, table_name: &str) -> Result<String, Box<dyn Error>> {
+        let table_id = self.get_table_id(table_name)?;
+        let table = &self.tables[table_id];
+
+        let column_names = table.get_column_names();
+        let rows = table.select();
+
+        let pad = |s: &str, width: usize| {
+            let mut s = s.to_string();
+            while s.chars().count() < width {
+                s.push(' ');
+            }
+            s
+        };
+        let line = |width| {
+            let mut s = String::new();
+            for _ in 0..width {
+                s.push('-');
+            }
+            s
+        };
+
+        // get the width of all column names
+        let mut column_widths = vec![];
+        for column_name in &column_names {
+            column_widths.push(column_name.chars().count());
+        }
+        // get the maximum width of all row values
+        for row in &rows {
+            for (i, value) in row.select().iter().enumerate() {
+                let mut width = column_widths[i];
+                if let Ok(data) = self.from_ids(value.clone()) {
+                    for datum in &data {
+                        width = width.max(datum.to_string().chars().count());
+                    }
+                } else {
+                    let value_str = value.to_string();
+                    width = width.max(value_str.chars().count());
+                }
+                column_widths[i] = width;
+            }
+        }
+
+        let mut result = String::new();
+        // write column names
+        for (i, column_name) in column_names.iter().enumerate() {
+            let width = column_widths[i];
+            result.push_str(&pad(column_name, width + 1));
+        }
+        result.push('\n');
+        // write line under column names
+        for (i, _) in column_names.iter().enumerate() {
+            let width = column_widths[i];
+            result.push_str(&line(width));
+            result.push(' ');
+        }
+        result.push('\n');
+
+        // write row values
+        for row in &rows {
+            let mut multi_index = 0;
+            loop {
+                let mut has_more_multi = false;
+                for (i, datum) in row.select().iter().enumerate() {
+                    if let Ok(multi_data) = self.from_ids(datum.clone()) {
+                        if multi_index < multi_data.len() {
+                            if multi_index + 1 < multi_data.len() {
+                                has_more_multi = true;
+                            }
+                            result.push_str(&pad(
+                                &multi_data[multi_index].to_string(),
+                                column_widths[i] + 1,
+                            ));
+                        } else {
+                            result.push_str(&pad("", column_widths[i] + 1));
+                        }
+                    } else {
+                        let width = column_widths[i];
+                        if multi_index == 0 {
+                            result.push_str(&pad(&datum.to_string(), width + 1));
+                        } else {
+                            result.push_str(&pad("", width + 1));
+                        }
+                    }
+                }
+                result.push('\n');
+                if has_more_multi {
+                    multi_index += 1;
+                } else {
+                    break;
+                }
+            }
+        }
+        Ok(result)
     }
 }
