@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use crate::data::Data;
+use crate::join::Join;
 use crate::row::Row;
 use crate::table::Table;
 use crate::time::Timestamp;
@@ -38,11 +39,16 @@ impl Db {
     }
 
     fn new(name: &str, db_dir: &str) -> Db {
-        Db {
+        let mut db = Db {
             name: name.to_string(),
             db_dir: db_dir.to_string(),
             tables: vec![],
-        }
+        };
+        db.create_table(".ids").unwrap();
+        db.create_column(".ids", "id").unwrap();
+        db.create_column(".ids", "references").unwrap();
+        db.create_column(".ids", "content").unwrap();
+        db
     }
     pub fn create(name: &str, db_dir: &str) -> Result<Db, Box<dyn Error>> {
         Ok(Db::new(name, db_dir))
@@ -287,6 +293,19 @@ impl Db {
     ) -> Result<(), Box<dyn Error>> {
         let id = self.get_table_id(table_name)?;
         self.tables[id].insert_data(values)
+    }
+
+    pub fn multi_ids(&mut self, values: Vec<&str>) -> Result<Data, Box<dyn Error>> {
+        let data = Data::parse_multi(&values);
+        let table_ids = self.get_table_id(".ids")?;
+        let mut ids = vec![];
+        for datum in &data {
+            let new_id = self.tables[table_ids].len();
+            ids.push(new_id as i64);
+            let line = vec![Data::Int(new_id as i64), Data::Int(1), datum.clone()];
+            self.tables[table_ids].insert_data(line)?;
+        }
+        Ok(Data::Join(Join::from(&ids)))
     }
 
     pub fn select_from(&self, table_name: &str) -> Result<Vec<Row>, Box<dyn Error>> {

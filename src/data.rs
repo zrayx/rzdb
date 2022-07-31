@@ -1,4 +1,7 @@
-use crate::time::{Date, Time};
+use crate::{
+    join::Join,
+    time::{Date, Time},
+};
 
 #[derive(Clone, PartialEq)]
 pub enum Data {
@@ -8,6 +11,7 @@ pub enum Data {
     Int(i64),
     Date(Date),
     Time(Time),
+    Join(Join),
 }
 
 fn encode_for_csv(s: &str) -> String {
@@ -121,6 +125,8 @@ impl Data {
     pub fn parse(s: &str) -> Data {
         if s.is_empty() {
             Data::Empty
+        } else if let Ok(n) = Join::parse(s) {
+            Data::Join(n)
         } else if let Ok(n) = Date::parse(s) {
             Data::Date(n)
         } else if let Ok(n) = Time::parse(s) {
@@ -133,6 +139,11 @@ impl Data {
             Data::String(s.to_string())
         }
     }
+
+    pub fn parse_multi(v: &[&str]) -> Vec<Data> {
+        v.iter().map(|s| Data::parse(*s)).collect()
+    }
+
     pub fn decode_line(s: &str) -> Vec<Data> {
         let mut out = vec![];
         for s in CsvIterator::new(s) {
@@ -153,6 +164,7 @@ impl Data {
             Data::Float(n) => n.to_string(),
             Data::Date(n) => n.to_string(),
             Data::Time(n) => n.to_string(),
+            Data::Join(n) => n.to_string(),
             Data::Empty => "".to_string(),
         }
     }
@@ -169,6 +181,7 @@ impl std::fmt::Display for Data {
                 Data::Float(n) => n.to_string(),
                 Data::Date(n) => n.to_string(),
                 Data::Time(n) => n.to_string(),
+                Data::Join(n) => n.to_string(),
                 Data::Empty => "".to_string(),
             }
         )
@@ -223,6 +236,8 @@ mod tests {
             ("2024-01-01", Data::Date(Date::new(2024, 1, 1))),
             ("1.1.23", Data::Date(Date::new(2023, 1, 1))),
             ("1.1.", Data::Date(Date::new(2022, 1, 1))),
+            ("[1,2,3]", Data::Join(Join::from(&[1, 2, 3]))),
+            ("[1]", Data::Join(Join::from(&[1]))),
         ] {
             let left = Data::parse(d.0);
             let right = d.1;
@@ -238,6 +253,8 @@ mod tests {
             (Data::Float(1.1), "1.1"),
             (Data::Date(Date::new(2024, 1, 1)), "2024-01-01"),
             (Data::Time(Time::new(2 * 3600 + 4 * 60)), "02:04:00"),
+            (Data::Join(Join::from(&[1, 2, 3])), "[1,2,3]"),
+            (Data::Join(Join::from(&[1])), "[1]"),
             (Data::Empty, ""),
         ] {
             let left = d.0.to_string();

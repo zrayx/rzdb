@@ -1,5 +1,6 @@
 mod data;
 mod db;
+mod join;
 mod row;
 mod table;
 pub mod time;

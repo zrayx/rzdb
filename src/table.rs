@@ -103,6 +103,10 @@ impl Table {
         Ok(())
     }
 
+    pub fn len(&self) -> usize {
+        self.rows.len()
+    }
+
     pub fn is_changed(&self) -> bool {
         self.changed
     }
@@ -220,6 +224,7 @@ impl Table {
         self.changed = true;
         Ok(())
     }
+
     pub fn insert_data(&mut self, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
         if self.column_names.len() != data.len() {
             return Err(Box::new(std::io::Error::new(
