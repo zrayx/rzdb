@@ -18,7 +18,7 @@ impl Row {
         Row { data: vec![] }
     }
 
-    pub fn new_from(data: Vec<Data>) -> Row {
+    pub fn from(data: Vec<Data>) -> Row {
         Row { data }
     }
 
@@ -51,7 +51,7 @@ impl Row {
         for index in indices {
             result.push(self.data[*index].clone());
         }
-        Row::new_from(result)
+        Row::from(result)
     }
 
     pub fn select_at(&self, idx: usize) -> Result<Data, Box<dyn Error>> {

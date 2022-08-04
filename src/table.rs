@@ -161,7 +161,7 @@ impl Table {
     pub fn insert_empty_row_at(&mut self, index: usize) {
         let column_count = self.column_count();
         self.rows
-            .insert(index, Row::new_from(vec![Data::Empty; column_count]));
+            .insert(index, Row::from(vec![Data::Empty; column_count]));
         self.changed = true;
     }
     pub fn insert_rows_at(&mut self, index: usize, rows: Vec<Row>) {
@@ -238,7 +238,7 @@ impl Table {
                 ),
             )));
         }
-        self.rows.push(Row::new_from(data));
+        self.rows.push(Row::from(data));
         self.changed = true;
         Ok(())
     }

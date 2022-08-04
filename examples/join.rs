@@ -4,11 +4,11 @@ use rzdb::{Data, Db};
 
 fn main() {
     let db_name = "examples";
-    let path = "~/.local/rzdb";
+    let db_dir = "~/.local/rzdb";
     let table_name = "join";
     println!("Creating new database...");
 
-    let mut db = Db::create(db_name, path).unwrap();
+    let mut db = Db::create(db_name, db_dir).unwrap();
     db.create_table(table_name).unwrap();
     db.create_column(table_name, "datum").unwrap();
     db.create_column(table_name, "value 1").unwrap();
@@ -44,8 +44,16 @@ fn main() {
         .unwrap();
     db.insert_data(table_name, vec![date, multi_item_1, and, multi_item_2])
         .unwrap();
+    print!("{}", db.display(table_name).unwrap());
 
     db.save().unwrap();
-    print!("{}", db.display(table_name).unwrap());
+
+    println!();
+    println!("Saving, then loading database...");
+    println!("================================");
+    match Db::load(db_name, db_dir) {
+        Ok(db) => println!("{}", db.display(table_name).unwrap()),
+        Err(e) => println!("Failed to load database: {}", e),
+    };
     println!("Done.");
 }

@@ -60,7 +60,11 @@ impl Db {
     }
 
     pub fn load(name: &str, db_dir: &str) -> Result<Db, Box<dyn Error>> {
-        let mut db = Db::new(name, db_dir);
+        let mut db = Db {
+            name: name.to_string(),
+            db_dir: db_dir.to_string(),
+            tables: vec![],
+        };
         let (full_path, _) = db.path_names();
         // load each file in the directory
         for entry in std::fs::read_dir(&full_path)? {
@@ -305,7 +309,7 @@ impl Db {
             let line = vec![Data::Int(new_id as i64), Data::Int(1), datum.clone()];
             self.tables[table_ids].insert_data(line)?;
         }
-        Ok(Data::Join(Join::from(ids)))
+        Ok(Data::Join(Join::new(ids)))
     }
 
     pub fn from_ids(&self, datum: Data) -> Result<Vec<Data>, Box<dyn Error>> {

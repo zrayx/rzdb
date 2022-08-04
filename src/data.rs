@@ -60,23 +60,32 @@ impl<'a> Iterator for CsvIterator<'a> {
         }
         let mut out = String::new();
         let mut in_quote = false;
+        let mut in_brackets = false;
         let mut in_escape = false;
         let mut old_char = 'x';
         let mut num_quotes = 0;
 
-        for c in self.s[self.pos..].chars() {
-            self.pos += c.len_utf8();
+        for ch in self.s[self.pos..].chars() {
+            self.pos += ch.len_utf8();
             if in_escape {
-                match c {
+                match ch {
                     'n' => out.push('\n'),
                     'r' => out.push('\r'),
                     't' => out.push('\t'),
                     '"' => out.push('"'),
-                    _ => out.push(c),
+                    _ => out.push(ch),
                 }
                 in_escape = false;
             } else {
-                match c {
+                match ch {
+                    '[' => {
+                        in_brackets = true;
+                        out.push(ch);
+                    }
+                    ']' => {
+                        in_brackets = false;
+                        out.push(ch);
+                    }
                     '"' => {
                         num_quotes += 1;
                         if old_char == '"' && num_quotes % 2 == 1 {
@@ -90,31 +99,31 @@ impl<'a> Iterator for CsvIterator<'a> {
                     }
                     '\n' => {
                         if in_quote {
-                            out.push(c);
+                            out.push(ch);
                         } else {
                             return Some(out);
                         }
                     }
                     '\r' => {
                         if in_quote {
-                            out.push(c);
+                            out.push(ch);
                         } else {
                             return Some(out);
                         }
                     }
                     ',' => {
-                        if in_quote {
-                            out.push(c);
+                        if in_quote || in_brackets {
+                            out.push(ch);
                         } else {
                             return Some(out);
                         }
                     }
                     _ => {
-                        out.push(c);
+                        out.push(ch);
                     }
                 }
             }
-            old_char = c;
+            old_char = ch;
         }
         self.pos += out.len();
         Some(out)
@@ -158,12 +167,21 @@ impl Data {
         }
         out
     }
+
     pub fn no_time_seconds(&self) -> String {
         match self {
             Data::Time(n) => n.to_string().chars().take(5).collect(),
             _ => self.to_string(),
         }
     }
+
+    pub fn item_count(&self) -> usize {
+        match self {
+            Data::Join(j) => j.ids.len(),
+            _ => 1,
+        }
+    }
+
     pub fn encode_for_csv(&self) -> String {
         match self {
             Data::String(s) => encode_for_csv(s),
@@ -243,8 +261,8 @@ mod tests {
             ("2024-01-01", Data::Date(Date::new(2024, 1, 1))),
             ("1.1.23", Data::Date(Date::new(2023, 1, 1))),
             ("1.1.", Data::Date(Date::new(2022, 1, 1))),
-            ("[1,2,3]", Data::Join(Join::from(vec![1, 2, 3]))),
-            ("[1]", Data::Join(Join::from(vec![1]))),
+            ("[1,2,3]", Data::Join(Join::new(vec![1, 2, 3]))),
+            ("[1]", Data::Join(Join::new(vec![1]))),
         ] {
             let left = Data::parse(d.0);
             let right = d.1;
@@ -260,8 +278,8 @@ mod tests {
             (Data::Float(1.1), "1.1"),
             (Data::Date(Date::new(2024, 1, 1)), "2024-01-01"),
             (Data::Time(Time::new(2 * 3600 + 4 * 60)), "02:04:00"),
-            (Data::Join(Join::from(vec![1, 2, 3])), "[1,2,3]"),
-            (Data::Join(Join::from(vec![1])), "[1]"),
+            (Data::Join(Join::new(vec![1, 2, 3])), "[1,2,3]"),
+            (Data::Join(Join::new(vec![1])), "[1]"),
             (Data::Empty, ""),
         ] {
             let left = d.0.to_string();

@@ -37,11 +37,10 @@ fn main() {
     println!("Saving, then loading database...");
     println!("================================");
     db.save().unwrap();
-    if let Ok(db) = Db::load(db_name, db_dir) {
-        println!("{}", db.to_string(table_name).unwrap());
-    } else {
-        println!("Failed to load database.");
-    }
+    match Db::load(db_name, db_dir) {
+        Ok(db) => println!("{}", db.display(table_name).unwrap()),
+        Err(e) => println!("Failed to load database: {}", e),
+    };
 
     println!("Dropping table...");
     println!("=================");

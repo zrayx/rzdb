@@ -10,7 +10,7 @@ fn gen_error(msg: &str) -> Box<dyn Error> {
 }
 
 impl Join {
-    pub fn from(ids: Vec<i64>) -> Join {
+    pub fn new(ids: Vec<i64>) -> Join {
         Join { ids }
     }
     pub fn parse(s: &str) -> Result<Join, Box<dyn Error>> {
