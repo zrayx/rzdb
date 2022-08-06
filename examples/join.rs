@@ -7,6 +7,7 @@ fn main() {
     let db_dir = "~/.local/rzdb";
     let table_name = "join";
     println!("Creating new database...");
+    println!("------------------------");
 
     let mut db = Db::create(db_name, db_dir).unwrap();
     db.create_table(table_name).unwrap();
@@ -44,16 +45,34 @@ fn main() {
         .unwrap();
     db.insert_data(table_name, vec![date, multi_item_1, and, multi_item_2])
         .unwrap();
+
+    println!();
+    println!("output via Db::display()");
+    println!("------------------------");
     print!("{}", db.display(table_name).unwrap());
 
     db.save().unwrap();
 
     println!();
     println!("Saving, then loading database...");
-    println!("================================");
+    println!("--------------------------------");
     match Db::load(db_name, db_dir) {
         Ok(db) => println!("{}", db.display(table_name).unwrap()),
         Err(e) => println!("Failed to load database: {}", e),
     };
+
+    println!();
+    println!("output using Db::select_array()");
+    println!("-------------------------------");
+    let mut rows = db.select_array(table_name).unwrap();
+    for (row_idx, row) in rows.iter().enumerate() {
+        println!("row {}", row_idx);
+        for (col_idx, col) in row.iter().enumerate() {
+            for (item_idx, item) in col.iter().enumerate() {
+                println!("({}.{}) {}", col_idx, item_idx, item);
+            }
+        }
+    }
+
     println!("Done.");
 }

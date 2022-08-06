@@ -12,6 +12,9 @@ pub struct Db {
     tables: Vec<Table>,
 }
 
+const IDS_TABLE_ID: usize = 0;
+const IDS_COLUMN_ID: usize = 2;
+
 impl Db {
     fn expand_home_dir(path: &str) -> String {
         if !path.is_empty() {
@@ -66,15 +69,20 @@ impl Db {
             tables: vec![],
         };
         let (full_path, _) = db.path_names();
-        // load each file in the directory
+        // load ".ids" table
+        let ids_table = Table::load(&format!("{}/.ids.csv", &full_path))?;
+        db.tables.push(ids_table);
+        // load all other tables
         for entry in std::fs::read_dir(&full_path)? {
             let entry = entry?;
             let path = entry.path();
             let filename = path.file_name().unwrap().to_str().unwrap();
-            let full_filename = format!("{}/{}", &full_path, filename);
-            if filename.ends_with(".csv") {
-                let table = Table::load(&full_filename)?;
-                db.tables.push(table);
+            if filename != ".ids" {
+                let full_filename = format!("{}/{}", &full_path, filename);
+                if filename.ends_with(".csv") {
+                    let table = Table::load(&full_filename)?;
+                    db.tables.push(table);
+                }
             }
         }
         Ok(db)
@@ -330,9 +338,36 @@ impl Db {
         }
     }
 
+    fn expand(&self, datum: Data) -> Result<Vec<Data>, Box<dyn Error>> {
+        if let Data::Join(join) = datum {
+            let mut result = vec![];
+            for id in join.ids {
+                let datum = self.tables[IDS_TABLE_ID].select_at(IDS_COLUMN_ID, id as usize);
+                result.push(datum?);
+            }
+            Ok(result)
+        } else {
+            Ok(vec![datum])
+        }
+    }
+
     pub fn select_from(&self, table_name: &str) -> Result<Vec<Row>, Box<dyn Error>> {
         let id = self.get_table_id(table_name)?;
         Ok(self.tables[id].select())
+    }
+
+    pub fn select_array(&self, table_name: &str) -> Result<Vec<Vec<Vec<Data>>>, Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        let data = self.tables[id].select();
+        let mut result = vec![];
+        for row in data {
+            let mut row_data = vec![];
+            for col in row {
+                row_data.push(self.expand(col)?);
+            }
+            result.push(row_data);
+        }
+        Ok(result)
     }
 
     pub fn select_at(
