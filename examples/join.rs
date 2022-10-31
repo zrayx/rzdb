@@ -64,7 +64,7 @@ fn main() {
     println!();
     println!("output using Db::select_array()");
     println!("-------------------------------");
-    let mut rows = db.select_array(table_name).unwrap();
+    let rows = db.select_array(table_name).unwrap();
     for (row_idx, row) in rows.iter().enumerate() {
         println!("row {}", row_idx);
         for (col_idx, col) in row.iter().enumerate() {
