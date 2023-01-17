@@ -284,6 +284,7 @@ impl Table {
         self.changed = true;
         Ok(())
     }
+
     pub fn append_rows(&mut self, rows: &mut Vec<Row>) -> Result<(), Box<dyn Error>> {
         if !rows.is_empty() && self.column_count() != rows.first().unwrap().len() {
             return Err(Box::new(std::io::Error::new(
@@ -309,25 +310,7 @@ impl Table {
         result
     }
 
-    pub fn select_where(
-        &self,
-        column_names: &[&str],
-        start_row: usize,
-        end_row: usize,
-    ) -> Result<Vec<Row>, Box<dyn Error>> {
-        if end_row > self.rows.len() {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!(
-                    "Table::select_where({}, {}, {}): end row {} is out of bounds.",
-                    self.name,
-                    start_row,
-                    end_row,
-                    self.rows.len(),
-                ),
-            )));
-        }
-
+    pub fn select_columns(&self, column_names: &[&str]) -> Result<Vec<Row>, Box<dyn Error>> {
         let mut column_ids = vec![];
         for column_name in column_names {
             if let Some(idx) = self.get_column_idx_option(column_name) {
@@ -336,17 +319,20 @@ impl Table {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     format!(
-                        "Table::select_where({}, {}, {}): column {} not found.",
-                        self.name, start_row, end_row, column_name,
+                        "Table::select_columns({}): column {} not found.",
+                        self.name, column_name,
                     ),
                 )));
             }
         }
 
         let mut result = vec![];
-        for row_idx in start_row..end_row {
-            let row = &self.rows[row_idx];
-            result.push(row.select_at_multiple(&column_ids));
+        for row in &self.rows {
+            let mut new_row = Row::new();
+            for column_id in &column_ids {
+                new_row.add(row.select_at(*column_id).unwrap());
+            }
+            result.push(new_row);
         }
         Ok(result)
     }

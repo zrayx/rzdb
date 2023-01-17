@@ -69,9 +69,17 @@ impl Db {
             tables: vec![],
         };
         let (full_path, _) = db.path_names();
-        // load ".ids" table
-        let ids_table = Table::load(&format!("{}/.ids.csv", &full_path))?;
-        db.tables.push(ids_table);
+        let ids_file_name = format!("{}/.ids.csv", &full_path);
+        if !std::path::Path::new(&ids_file_name).exists() {
+            db.create_table(".ids").unwrap();
+            db.create_column(".ids", "id").unwrap();
+            db.create_column(".ids", "references").unwrap();
+            db.create_column(".ids", "content").unwrap();
+        } else {
+            let ids_table = Table::load(&ids_file_name)?;
+            db.tables.push(ids_table);
+        }
+
         // load all other tables
         for entry in std::fs::read_dir(&full_path)? {
             let entry = entry?;
@@ -386,8 +394,8 @@ impl Db {
         dest_table: &str,
         source_table: &str,
         columns: &[&str],
-        start: usize,
-        end: usize,
+        start_idx: usize,
+        end_idx: usize,
     ) -> Result<(), Box<dyn Error>> {
         self.create_or_replace_table(dest_table)?;
         let dest_id = self.get_table_id(dest_table)?;
@@ -399,9 +407,58 @@ impl Db {
         let id = self.get_table_id(source_table)?;
         let table = &self.tables[id];
 
-        let mut rows = table.select_where(columns, start, end)?;
-        self.tables[dest_id].append_rows(&mut rows)?;
+        //if  rows = table.select_columns(columns)
+        let mut rows = vec![];
+        if let Ok(r) = table.select_columns(columns) {
+            for row in r.iter().skip(start_idx).take(end_idx - start_idx) {
+                rows.push(row.clone());
+            }
+        }
+        self.tables[dest_id].append_rows(&mut rows).unwrap();
         Ok(())
+    }
+
+    /// Selects columns in the given order from the table and returns a vector of rows.
+    /// # Arguments
+    /// * `table_name` - The name of the table to select from
+    /// * `columns` - The names of the columns to select
+    /// # Returns
+    /// * `Result<Vec<Row>, Box<dyn Error>>` - A vector of rows containing the selected columns
+    /// # Errors
+    /// * `Box<dyn Error>` - If the table does not exist or if the columns do not exist
+    /// # Examples
+    /// ```
+    /// use rzdb::Db;
+    /// let mut db = Db::create("test", "~/.local/rzdb").unwrap();
+    /// db.create_or_replace_table("select_columns").unwrap();
+    /// db.create_column("select_columns", "col1").unwrap();
+    /// db.create_column("select_columns", "col2").unwrap();
+    /// db.create_column("select_columns", "col3").unwrap();
+    /// db.insert("select_columns", vec!["1", "2", "3"]).unwrap();
+    /// db.insert("select_columns", vec!["4", "5", "6"]).unwrap();
+    /// db.insert("select_columns", vec!["7", "8", "9"]).unwrap();
+    /// let rows = db.select_columns("select_columns", &["col2", "col3", "col1"]).unwrap();
+    /// assert_eq!(rows.len(), 3);
+    /// assert_eq!(rows[0].len(), 3);
+    /// assert_eq!(rows[0].select_at(0).unwrap().to_string(), "2");
+    /// assert_eq!(rows[0].select_at(1).unwrap().to_string(), "3");
+    /// assert_eq!(rows[0].select_at(2).unwrap().to_string(), "1");
+    /// assert_eq!(rows[1].len(), 3);
+    /// assert_eq!(rows[1].select_at(0).unwrap().to_string(), "5");
+    /// assert_eq!(rows[1].select_at(1).unwrap().to_string(), "6");
+    /// assert_eq!(rows[1].select_at(2).unwrap().to_string(), "4");
+    /// assert_eq!(rows[2].len(), 3);
+    /// assert_eq!(rows[2].select_at(0).unwrap().to_string(), "8");
+    /// assert_eq!(rows[2].select_at(1).unwrap().to_string(), "9");
+    /// assert_eq!(rows[2].select_at(2).unwrap().to_string(), "7");
+    /// ```
+    pub fn select_columns(
+        &self,
+        table_name: &str,
+        columns: &[&str],
+    ) -> Result<Vec<Row>, Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].select_columns(columns)
     }
 
     pub fn get_column_name_at(

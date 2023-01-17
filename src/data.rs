@@ -150,7 +150,7 @@ impl Data {
     }
 
     pub fn parse_multi(v: &[&str]) -> Vec<Data> {
-        v.iter().map(|s| Data::parse(*s)).collect()
+        v.iter().map(|s| Data::parse(s)).collect()
     }
 
     pub fn as_join(&self) -> Option<&Join> {
@@ -260,7 +260,7 @@ mod tests {
             ("02:04", Data::Time(Time::new(2 * 3600 + 4 * 60))),
             ("2024-01-01", Data::Date(Date::new(2024, 1, 1))),
             ("1.1.23", Data::Date(Date::new(2023, 1, 1))),
-            ("1.1.", Data::Date(Date::new(2022, 1, 1))),
+            ("1.1.", Data::Date(Date::new(2023, 1, 1))),
             ("[1,2,3]", Data::Join(Join::new(vec![1, 2, 3]))),
             ("[1]", Data::Join(Join::new(vec![1]))),
         ] {
