@@ -188,6 +188,49 @@ impl Table {
         self.changed = true;
     }
 
+    pub fn delete_where(&mut self, conditions: &[Condition]) -> Result<(), Box<dyn Error>> {
+        // find the ids that match the columns
+        let mut column_ids = vec![];
+        let column_names = self.get_column_names();
+        for condition in conditions {
+            if let Some(idx) = column_names.iter().position(|x| x == condition.column) {
+                column_ids.push(idx);
+            } else {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Table::delete_where: column {} not found in table {}",
+                        self.name, condition.column,
+                    ),
+                )));
+            }
+        }
+
+        // find the rows that match the conditions
+        let mut rows_to_delete = vec![];
+        for (idx, row) in self.select().iter().enumerate() {
+            let mut matches = true;
+            for (condition_index, condition) in conditions.iter().enumerate() {
+                let column_id = column_ids[condition_index];
+                let value = row.select_at(column_id).unwrap();
+                if !condition.matches(&value) {
+                    matches = false;
+                    break;
+                }
+            }
+            if matches {
+                rows_to_delete.push(idx);
+            }
+        }
+
+        // delete the rows
+        for row_idx in rows_to_delete.iter().rev() {
+            self.delete_row(*row_idx);
+        }
+
+        Ok(())
+    }
+
     pub fn delete_column(&mut self, column_name: &str) -> Result<(), Box<dyn Error>> {
         if let Some(idx) = self.get_column_idx_option(column_name) {
             for row in &mut self.rows {

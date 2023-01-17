@@ -267,6 +267,36 @@ impl Db {
         };
         dest_table.insert_columns_at(col_idx, source_table)
     }
+
+    /// delete all rows that match the conditions
+    /// ```
+    /// use rzdb::{Db,Condition,Data};
+    /// let mut db = Db::create("test", "~/.local/rzdb").unwrap();
+    /// let table_name = "delete_where";
+    /// db.create_or_replace_table(table_name).unwrap();
+    /// db.create_column(table_name, "col1").unwrap();
+    /// db.create_column(table_name, "col2").unwrap();
+    /// db.create_column(table_name, "col3").unwrap();
+    /// db.insert(table_name, vec!["1", "2", "3"]).unwrap();
+    /// db.insert(table_name, vec!["4", "5", "6"]).unwrap();
+    /// db.insert(table_name, vec!["7", "8", "9"]).unwrap();
+    ///
+    /// db.delete_where(table_name, &[Condition::equal_int("col1", 1)]).unwrap();
+    /// let rows = db.select_from(table_name).unwrap();
+    /// assert_eq!(rows.len(), 2);
+    /// assert_eq!(rows[0].select_at(0).unwrap(), Data::Int(4));
+    /// assert_eq!(rows[1].select_at(2).unwrap(), Data::Int(9));
+    /// ```
+    pub fn delete_where(
+        &mut self,
+        table_name: &str,
+        conditions: &[Condition],
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].delete_where(conditions)?;
+        Ok(())
+    }
+
     pub fn delete_row_at(
         &mut self,
         table_name: &str,
