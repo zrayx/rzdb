@@ -204,6 +204,47 @@ impl Db {
         self.tables[id].rename_column(old_name, new_name)
     }
 
+    pub fn insert(&mut self, table_name: &str, values: Vec<&str>) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert(values)
+    }
+
+    /// insert a row at the specified index
+    /// ```
+    /// use rzdb::{Db,Data};
+    /// let mut db = Db::create("test", "~/.local/rzdb").unwrap();
+    /// let table_name = "insert_at";
+    /// db.create_or_replace_table(table_name).unwrap();
+    /// db.create_column(table_name, "col1").unwrap();
+    /// db.create_column(table_name, "col2").unwrap();
+    /// db.create_column(table_name, "col3").unwrap();
+    /// db.insert(table_name, vec!["1", "2", "3"]).unwrap();
+    /// db.insert_at(table_name, vec!["4", "5", "6"], 0).unwrap();
+    /// db.insert_at(table_name, vec!["7", "8", "9"], 1).unwrap();
+    /// let r = db.select_from(table_name).unwrap();
+    /// assert_eq!(r[0].select_at(0).unwrap(), Data::Int(4));
+    /// assert_eq!(r[1].select_at(0).unwrap(), Data::Int(7));
+    /// assert_eq!(r[2].select_at(0).unwrap(), Data::Int(1));
+    /// ```
+    pub fn insert_at(
+        &mut self,
+        table_name: &str,
+        values: Vec<&str>,
+        idx: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert_at(values, idx)
+    }
+
+    pub fn insert_data(
+        &mut self,
+        table_name: &str,
+        values: Vec<Data>,
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert_data(values)
+    }
+
     pub fn insert_column_at(
         &mut self,
         table_name: &str,
@@ -330,20 +371,6 @@ impl Db {
             std::io::ErrorKind::NotFound,
             format!("Table {} not found", name),
         )))
-    }
-
-    pub fn insert(&mut self, table_name: &str, values: Vec<&str>) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id(table_name)?;
-        self.tables[id].insert(values)
-    }
-
-    pub fn insert_data(
-        &mut self,
-        table_name: &str,
-        values: Vec<Data>,
-    ) -> Result<(), Box<dyn Error>> {
-        let id = self.get_table_id(table_name)?;
-        self.tables[id].insert_data(values)
     }
 
     pub fn store_ids(&mut self, values: Vec<&str>) -> Result<Data, Box<dyn Error>> {

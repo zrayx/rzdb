@@ -269,6 +269,28 @@ impl Table {
         Ok(())
     }
 
+    pub fn insert_at(&mut self, values: Vec<&str>, idx: usize) -> Result<(), Box<dyn Error>> {
+        let mut row = Row::new();
+        for value in &values {
+            row.add_parse(value);
+        }
+        if self.column_names.len() != values.len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::insert({}, {:?}): tried to insert {} items, but have {} columns.",
+                    self.name,
+                    values,
+                    self.column_names.len(),
+                    values.len(),
+                ),
+            )));
+        }
+        self.rows.insert(idx, row);
+        self.changed = true;
+        Ok(())
+    }
+
     pub fn insert_data(&mut self, data: Vec<Data>) -> Result<(), Box<dyn Error>> {
         if self.column_names.len() != data.len() {
             return Err(Box::new(std::io::Error::new(
