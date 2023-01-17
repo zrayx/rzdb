@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use crate::condition::Condition;
 use crate::data::Data;
 use crate::join::Join;
 use crate::row::Row;
@@ -459,6 +460,44 @@ impl Db {
     ) -> Result<Vec<Row>, Box<dyn Error>> {
         let id = self.get_table_id(table_name)?;
         self.tables[id].select_columns(columns)
+    }
+
+    /// Selects rows from the table that match the given conditions and returns a vector of rows.
+    /// # Arguments
+    /// * `table_name` - The name of the table to select from
+    /// * `conditions` - The conditions to match
+    /// # Returns
+    /// * `Result<Vec<Row>, Box<dyn Error>>` - A vector of rows containing the selected columns
+    /// # Errors
+    /// * `Box<dyn Error>` - If the table does not exist or if the columns do not exist
+    /// # Examples
+    /// ```
+    /// use rzdb::Db;
+    /// use rzdb::Condition;
+    /// let mut db = Db::create("test", "~/.local/rzdb").unwrap();
+    /// db.create_or_replace_table("select_where").unwrap();
+    /// db.create_column("select_where", "col1").unwrap();
+    /// db.create_column("select_where", "col2").unwrap();
+    /// db.create_column("select_where", "col3").unwrap();
+    /// db.insert("select_where", vec!["1", "2", "3"]).unwrap();
+    /// db.insert("select_where", vec!["4", "5", "some_text"]).unwrap();
+    /// db.insert("select_where", vec!["7", "8", "9"]).unwrap();
+    /// let rows = db.select_where("select_where", &[Condition::equal_int("col2", 5)]).unwrap();
+    /// assert_eq!(rows.len(), 1);
+    /// assert_eq!(rows[0].len(), 3);
+    /// assert_eq!(rows[0].select_at(0).unwrap().to_string(), "4");
+    /// let rows = db.select_where("select_where", &[Condition::equal_string("col3", "some_text")]).unwrap();
+    /// assert_eq!(rows.len(), 1);
+    /// assert_eq!(rows[0].len(), 3);
+    /// assert_eq!(rows[0].select_at(1).unwrap().to_string(), "5");
+    /// ```
+    pub fn select_where(
+        &self,
+        table_name: &str,
+        conditions: &[Condition],
+    ) -> Result<Vec<Row>, Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].select_where(conditions)
     }
 
     pub fn get_column_name_at(

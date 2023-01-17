@@ -1,3 +1,4 @@
+use crate::condition::Condition;
 use crate::data::Data;
 use crate::row::Row;
 use std::error::Error;
@@ -360,6 +361,43 @@ impl Table {
             )));
         }
         self.rows[row_idx].select_at(col_idx)
+    }
+
+    pub fn select_where(&self, conditions: &[Condition]) -> Result<Vec<Row>, Box<dyn Error>> {
+        // find the ids that match the columns
+        let mut column_ids = vec![];
+        let column_names = self.get_column_names();
+        for condition in conditions {
+            if let Some(idx) = column_names.iter().position(|x| x == condition.column) {
+                column_ids.push(idx);
+            } else {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Table::select_where({}): column {} not found.",
+                        self.name, condition.column,
+                    ),
+                )));
+            }
+        }
+
+        // find the rows that match the conditions
+        let mut result = vec![];
+        for row in self.select() {
+            let mut matches = true;
+            for (condition_index, condition) in conditions.iter().enumerate() {
+                let column_id = column_ids[condition_index];
+                let value = row.select_at(column_id).unwrap();
+                if !condition.matches(&value) {
+                    matches = false;
+                    break;
+                }
+            }
+            if matches {
+                result.push(row.clone());
+            }
+        }
+        Ok(result)
     }
 
     pub fn get_column_name_at(&self, idx: usize) -> String {
