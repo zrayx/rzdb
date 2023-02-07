@@ -308,10 +308,12 @@ impl Table {
         self.changed = true;
         Ok(())
     }
+
     pub fn insert_into_at(&mut self, index: usize, rows: Vec<Row>) {
         self.rows.splice(index..index, rows);
         self.changed = true;
     }
+
     pub fn insert_columns_at(&mut self, index: usize, table: &Table) -> Result<(), Box<dyn Error>> {
         // check number of rows is equal
         if self.row_count() != table.row_count() {
@@ -346,6 +348,42 @@ impl Table {
         // insert columns
         for (row_index, row) in &mut self.rows.iter_mut().enumerate() {
             row.insert_columns_at(index, &table.rows[row_index].clone());
+        }
+        self.changed = true;
+        Ok(())
+    }
+
+    pub fn insert_update_where(
+        &mut self,
+        values: Vec<&str>,
+        conditions: &[Condition],
+    ) -> Result<(), Box<dyn Error>> {
+        if self.column_names.len() != values.len() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Table::insert({}, {:?}): tried to insert {} items, but have {} columns.",
+                    self.name,
+                    values,
+                    self.column_names.len(),
+                    values.len(),
+                ),
+            )));
+        }
+        let mut rows_to_update = vec![];
+        for (idx, _row) in self.select_where_idx(&conditions).unwrap() {
+            rows_to_update.push(idx);
+        }
+        if rows_to_update.is_empty() {
+            self.insert(values)?;
+        } else {
+            let mut row = Row::new();
+            for value in &values {
+                row.add_parse(value);
+            }
+            for idx in rows_to_update {
+                self.rows[idx] = row.clone();
+            }
         }
         self.changed = true;
         Ok(())
@@ -460,6 +498,46 @@ impl Table {
             }
             if matches {
                 result.push(row.clone());
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn select_where_idx(
+        &self,
+        conditions: &[Condition],
+    ) -> Result<Vec<(usize, Row)>, Box<dyn Error>> {
+        // find the ids that match the columns
+        let mut column_ids = vec![];
+        let column_names = self.get_column_names();
+        for condition in conditions {
+            if let Some(idx) = column_names.iter().position(|x| x == condition.column) {
+                column_ids.push(idx);
+            } else {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Table::select_where({}): column {} not found.",
+                        self.name, condition.column,
+                    ),
+                )));
+            }
+        }
+
+        // find the rows that match the conditions
+        let mut result = vec![];
+        for (index, row) in self.select().iter().enumerate() {
+            let mut matches = true;
+            for (condition_index, condition) in conditions.iter().enumerate() {
+                let column_id = column_ids[condition_index];
+                let value = row.select_at(column_id).unwrap();
+                if !condition.matches(&value) {
+                    matches = false;
+                    break;
+                }
+            }
+            if matches {
+                result.push((index, row.clone()));
             }
         }
         Ok(result)

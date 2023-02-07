@@ -309,6 +309,41 @@ impl Db {
         dest_table.insert_columns_at(col_idx, source_table)
     }
 
+    /// insert values into table, or update if search condition met
+    /// ```
+    /// use rzdb::{Db,Condition,Data};
+    /// let mut db = Db::create("test", "~/.local/rzdb").unwrap();
+    /// let table_name = "insert_or_update";
+    /// db.create_or_replace_table(table_name).unwrap();
+    /// db.create_column(table_name, "col1").unwrap();
+    /// db.create_column(table_name, "col2").unwrap();
+    /// db.create_column(table_name, "col3").unwrap();
+    /// db.insert(table_name, vec!["1", "2", "3"]).unwrap();
+    /// db.insert(table_name, vec!["4", "5", "6"]).unwrap();
+    /// db.insert(table_name, vec!["7", "8", "9"]).unwrap();
+    /// let cond = Condition::equal_int("col1", 4);
+    /// db.insert_update_where(table_name, vec!["10", "11", "12"], &[cond]).unwrap();
+    /// let r = db.select_from(table_name).unwrap();
+    /// assert_eq!(r[1].select_at(0).unwrap(), Data::Int(10));
+    /// assert_eq!(r[1].select_at(1).unwrap(), Data::Int(11));
+    /// assert_eq!(r[1].select_at(2).unwrap(), Data::Int(12));
+    /// let cond = Condition::equal_int("col1", 4);
+    /// db.insert_update_where(table_name, vec!["4", "5", "6"], &[cond]).unwrap();
+    /// let r = db.select_from(table_name).unwrap();
+    /// assert_eq!(r[3].select_at(0).unwrap(), Data::Int(4));
+    /// assert_eq!(r[3].select_at(1).unwrap(), Data::Int(5));
+    /// assert_eq!(r[3].select_at(2).unwrap(), Data::Int(6));
+    /// ```
+    pub fn insert_update_where(
+        &mut self,
+        table_name: &str,
+        values: Vec<&str>,
+        conditions: &[Condition],
+    ) -> Result<(), Box<dyn Error>> {
+        let id = self.get_table_id(table_name)?;
+        self.tables[id].insert_update_where(values, conditions)
+    }
+
     /// delete all rows that match the conditions
     /// ```
     /// use rzdb::{Db,Condition,Data};
