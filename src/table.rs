@@ -371,7 +371,7 @@ impl Table {
             )));
         }
         let mut rows_to_update = vec![];
-        for (idx, _row) in self.select_where_idx(&conditions).unwrap() {
+        for (idx, _row) in self.select_where_idx(conditions).unwrap() {
             rows_to_update.push(idx);
         }
         if rows_to_update.is_empty() {

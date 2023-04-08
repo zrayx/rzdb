@@ -23,6 +23,10 @@ impl Condition<'_> {
         Condition::new(column, Data::Int(data), ConditionType::Equal)
     }
 
+    pub fn not_null(column: &str) -> Condition {
+        Condition::new(column, Data::Empty, ConditionType::NotEqual)
+    }
+
     pub fn matches(&self, data: &Data) -> bool {
         match self.condition {
             ConditionType::Equal => self.data == *data,
